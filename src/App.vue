@@ -1,23 +1,38 @@
 <template>
   <div :class="['app-shell', { projector: projectorMode }]">
-    <header class="navbar">
+    <main v-if="activeView === 'intro'" class="intro-page">
+      <canvas ref="introCanvas" class="intro-art" @pointermove="moveIntroArt" @pointerdown="moveIntroArt"></canvas>
+      <div class="intro-topline"><span class="intro-mark">∫</span><span>ÉTS Montréal <i>·</i> MAT145</span><span class="intro-live"><b></b> Une expérience interactive</span></div>
+      <div class="intro-content">
+        <div class="intro-kicker">CALCUL DIFFÉRENTIEL ET INTÉGRAL</div>
+        <h1>Les mathématiques<br/>prennent <em>forme.</em></h1>
+        <p>Explorez les idées derrière le calcul, une courbe à la fois.</p>
+        <button class="intro-enter" @click="switchView('landing')">Entrer dans le studio <span>↗</span></button>
+        <div class="intro-hint"><span class="hint-line"></span>Déplacez le pointeur pour explorer</div>
+      </div>
+      <div class="intro-equation equation-one">∫<sub>a</sub><sup>b</sup> f(x) dx</div>
+      <div class="intro-equation equation-two">lim<sub>h→0</sub> &nbsp; Δy / Δx</div>
+      <div class="intro-index"><span>01</span><span class="index-rule"></span><span>04</span><span>CONCEPTS À EXPLORER</span></div>
+      <div class="intro-bottom"><span>Un espace pour voir, toucher et comprendre.</span><span>MAT145 STUDIO <b>©</b> 2026</span></div>
+    </main>
+    <header v-if="activeView !== 'intro'" class="navbar">
       <div class="nav-inner">
         <div class="brand" @click="switchView('landing')">
           <div class="ets-logo">ÉTS</div>
           <div>
-            <div class="brand-title">MAT145 Studio <span class="badge">v2.0 Vue 3 + Vite</span></div>
+            <div class="brand-title">MAT145 Studio <span class="badge">ÉTS Montréal</span></div>
             <div class="brand-sub">Calcul différentiel et intégral • Laboratoire visuel interactif</div>
           </div>
         </div>
 
         <nav class="nav-tabs">
-          <button :class="['nav-btn', { active: activeView === 'landing' }]" @click="switchView('landing')">✨ Accueil & Présentation</button>
-          <button :class="['nav-btn', { active: activeView === 'studio' }]" @click="switchView('studio')">📐 Studio Interactif (4 Labs)</button>
-          <button :class="['nav-btn', { active: activeView === 'presets' }]" @click="switchView('presets')">🎓 Scénarios de Cours</button>
+          <button :class="['nav-btn', { active: activeView === 'landing' }]" @click="switchView('landing')">Accueil</button>
+          <button :class="['nav-btn', { active: activeView === 'studio' }]" @click="switchView('studio')">Explorer les laboratoires</button>
+          <button :class="['nav-btn', { active: activeView === 'presets' }]" @click="switchView('presets')">Scénarios</button>
         </nav>
 
         <button :class="['btn-outline', { active: projectorMode }]" @click="projectorMode = !projectorMode">
-          📽️ Mode Amphithéâtre
+          Mode présentation
         </button>
       </div>
     </header>
@@ -39,8 +54,8 @@
               Une plateforme web moderne conçue pour les professeurs, chargés de cours et étudiants de l'<strong>École de technologie supérieure</strong>. Illustrez les limites différentielles, les sommes de Riemann, les solides de révolution 3D (disques et rondelles) et la convergence des séries de Taylor à 60 FPS.
             </p>
             <div class="hero-actions">
-              <button class="btn-primary" @click="openLab('derivative')">🚀 Ouvrir le Studio Interactif</button>
-              <button class="btn-secondary" @click="switchView('presets')">🧭 Scénarios d'Enseignement</button>
+              <button class="btn-primary" @click="openLab('derivative')">Explorer le studio</button>
+              <button class="btn-secondary" @click="switchView('presets')">Voir les scénarios</button>
             </div>
             <div class="metrics-row">
               <div><strong>60 FPS</strong><span>Moteur Temps Réel</span></div>
@@ -58,7 +73,7 @@
             <canvas ref="heroMiniCanvas" class="mini-canvas"></canvas>
             <div class="card-footer">
               <span>f(x, t) = sin(x - ωt) · cos(0.4x)</span>
-              <span style="color:#fbbf24">Riemann & Tangente</span>
+              <span style="color:#c18d41">Riemann & Tangente</span>
             </div>
           </div>
         </div>
@@ -95,7 +110,7 @@
             {{ m.shortTitle }}
           </button>
         </div>
-        <button class="btn-outline" @click="exportPNG">📸 Exporter Capture PNG</button>
+        <button class="btn-outline" @click="exportPNG">Exporter en PNG</button>
       </div>
 
       <div class="studio-grid">
@@ -110,7 +125,7 @@
         </div>
 
         <div class="controls-card">
-          <h3>⚙️ Paramètres Temps Réel</h3>
+          <h3>Paramètres en direct</h3>
 
           <template v-if="activeLab === 'derivative'">
             <div class="ctrl-group">
@@ -219,10 +234,12 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 
-const activeView = ref('landing');
+const activeView = ref('intro');
 const activeLab = ref('derivative');
 const projectorMode = ref(false);
 
+const introCanvas = ref(null);
+const introPointer = reactive({ x: 0.72, y: 0.45 });
 const heroWaveCanvas = ref(null);
 const heroMiniCanvas = ref(null);
 const labCanvas = ref(null);
@@ -255,6 +272,12 @@ function switchView(v) {
   if (v === 'studio') nextTick(() => drawLab());
 }
 
+function moveIntroArt(event) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  introPointer.x = (event.clientX - rect.left) / rect.width;
+  introPointer.y = (event.clientY - rect.top) / rect.height;
+}
+
 function openLab(id) {
   activeLab.value = id;
   activeView.value = 'studio';
@@ -274,6 +297,31 @@ function runScenario(id) {
 }
 
 function animateHero() {
+  const art = introCanvas.value;
+  if (activeView.value === 'intro' && art) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = art.clientWidth, h = art.clientHeight;
+    if (art.width !== Math.round(w * dpr) || art.height !== Math.round(h * dpr)) { art.width = Math.round(w * dpr); art.height = Math.round(h * dpr); }
+    const ctx = art.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    const ox = w * (0.69 + (introPointer.x - 0.5) * 0.12), oy = h * (0.49 + (introPointer.y - 0.5) * 0.1);
+    const scale = Math.min(w, h) * 0.29;
+    const colors = ['#5b8cff', '#a28bff', '#e1a7dc', '#86c9e8', '#9bd8cb'];
+    for (let layer = 0; layer < 5; layer++) {
+      ctx.beginPath();
+      for (let i = 0; i <= 560; i++) {
+        const t = i / 560 * Math.PI * 2;
+        const wave = 1 + 0.18 * Math.sin(3 * t + heroTime * 0.7 + layer * 0.24) + 0.08 * Math.cos(5 * t - heroTime * 0.38);
+        const r = scale * wave * (0.48 + layer * 0.105);
+        const x = ox + Math.cos(t + layer * 0.11 + heroTime * 0.05) * r;
+        const y = oy + Math.sin(t) * r * 0.76 + Math.sin(2 * t + heroTime * 0.28) * scale * 0.035;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath(); ctx.strokeStyle = colors[layer]; ctx.globalAlpha = 0.24 + layer * 0.085; ctx.lineWidth = layer === 2 ? 1.8 : 1; ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    const glow = ctx.createRadialGradient(ox, oy, 0, ox, oy, scale * 0.9); glow.addColorStop(0, 'rgba(173,190,255,0.17)'); glow.addColorStop(1, 'rgba(173,190,255,0)'); ctx.fillStyle = glow; ctx.fillRect(ox-scale, oy-scale, scale*2, scale*2);
+    for (let i=0;i<8;i++){ const t=heroTime*0.22+i*Math.PI/4; const r=scale*(0.62+0.055*Math.sin(heroTime+i)); ctx.beginPath(); ctx.arc(ox+Math.cos(t)*r,oy+Math.sin(t)*r*0.76,2.2,0,Math.PI*2); ctx.fillStyle=colors[i%5];ctx.globalAlpha=.8;ctx.fill(); } ctx.globalAlpha=1;
+  }
   if (activeView.value === 'landing') {
     const bg = heroWaveCanvas.value;
     if (bg) {
@@ -296,7 +344,7 @@ function animateHero() {
       if (mini.width !== mini.clientWidth) { mini.width = mini.clientWidth; mini.height = mini.clientHeight; }
       const ctx = mini.getContext('2d');
       const w = mini.width, h = mini.height;
-      ctx.fillStyle = '#060a14';
+      ctx.fillStyle = '#f1f2f8';
       ctx.fillRect(0, 0, w, h);
       const midY = h / 2, sx = w / 10, sy = h / 4.2;
       const nR = 14, rw = w / nR;
@@ -304,10 +352,10 @@ function animateHero() {
         const mx = ((i + 0.5) * rw - w / 2) / sx;
         const val = Math.sin(mx - heroTime * 1.2) * Math.cos(0.4 * mx);
         const ry = midY - val * sy;
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+        ctx.fillStyle = 'rgba(116, 131, 203, 0.18)';
         ctx.fillRect(i * rw + 2, Math.min(midY, ry), rw - 4, Math.abs(midY - ry));
       }
-      ctx.strokeStyle = '#38bdf8';
+      ctx.strokeStyle = '#7483cb';
       ctx.lineWidth = 3;
       ctx.beginPath();
       for (let px = 0; px <= w; px += 3) {
@@ -333,7 +381,7 @@ function drawLab() {
   const ctx = c.getContext('2d');
   ctx.resetTransform();
   ctx.scale(dpr, dpr);
-  ctx.fillStyle = '#060a14';
+  ctx.fillStyle = '#f1f2f8';
   ctx.fillRect(0, 0, w, h);
 
   if (activeLab.value === 'derivative') {
@@ -346,16 +394,16 @@ function drawLab() {
     const ox = w / 2, oy = h / 2 + 20, sx = w / 9.5, sy = h / 7;
     const toX = x => ox + x * sx, toY = y => oy - y * sy, fromX = px => (px - ox) / sx;
 
-    ctx.strokeStyle = '#111c33';
+    ctx.strokeStyle = '#e3e4eb';
     for (let x = -5; x <= 5; x++) { ctx.beginPath(); ctx.moveTo(toX(x), 0); ctx.lineTo(toX(x), h); ctx.stroke(); }
     for (let y = -4; y <= 4; y++) { ctx.beginPath(); ctx.moveTo(0, toY(y)); ctx.lineTo(w, toY(y)); ctx.stroke(); }
-    ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+    ctx.strokeStyle = '#b8bac6'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(w, oy); ctx.moveTo(ox, 0); ctx.lineTo(ox, h); ctx.stroke();
 
     const fa = fn.f(d1.a), fah = fn.f(d1.a + d1.h);
     const mSec = (fah - fa) / d1.h, mTan = fn.df(d1.a);
 
-    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3;
+    ctx.strokeStyle = '#7483cb'; ctx.lineWidth = 3;
     ctx.beginPath();
     for (let px = 0; px <= w; px += 2) {
       const py = toY(fn.f(fromX(px)));
@@ -364,22 +412,22 @@ function drawLab() {
     ctx.stroke();
 
     const xL = fromX(0), xR = fromX(w);
-    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+    ctx.strokeStyle = '#c18d41'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, toY(fa + mSec * (xL - d1.a))); ctx.lineTo(w, toY(fa + mSec * (xR - d1.a))); ctx.stroke();
 
-    ctx.strokeStyle = '#34d399'; ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = '#5a9b79'; ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(0, toY(fa + mTan * (xL - d1.a))); ctx.lineTo(w, toY(fa + mTan * (xR - d1.a))); ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(toX(d1.a + d1.h), toY(fah), 5.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ef3e42'; ctx.beginPath(); ctx.arc(toX(d1.a), toY(fa), 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c18d41'; ctx.beginPath(); ctx.arc(toX(d1.a + d1.h), toY(fah), 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d57282'; ctx.beginPath(); ctx.arc(toX(d1.a), toY(fa), 7, 0, Math.PI * 2); ctx.fill();
 
     hudLines.value = [
       { label: 'Abscisse a :', value: d1.a.toFixed(3), color: '#f87171' },
-      { label: 'Pas h (Δx) :', value: d1.h.toFixed(3), color: '#fbbf24' },
-      { label: 'Pente sécante :', value: mSec.toFixed(4), color: '#fbbf24' },
-      { label: "Tangente f'(a) :", value: mTan.toFixed(4), color: '#38bdf8' },
-      { label: 'Erreur :', value: Math.abs(mSec - mTan).toFixed(5), color: '#34d399' }
+      { label: 'Pas h (Δx) :', value: d1.h.toFixed(3), color: '#c18d41' },
+      { label: 'Pente sécante :', value: mSec.toFixed(4), color: '#c18d41' },
+      { label: "Tangente f'(a) :", value: mTan.toFixed(4), color: '#7483cb' },
+      { label: 'Erreur :', value: Math.abs(mSec - mTan).toFixed(5), color: '#5a9b79' }
     ];
   } else if (activeLab.value === 'riemann') {
     const fn = x => Math.sin(x) + 1.4;
@@ -400,17 +448,17 @@ function drawLab() {
         sum += 0.5 * (yA + yB) * dx;
         ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
         ctx.beginPath(); ctx.moveTo(sx0, y0); ctx.lineTo(sx0, toY(yA)); ctx.lineTo(sx1, toY(yB)); ctx.lineTo(sx1, y0); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#fbbf24'; ctx.stroke();
+        ctx.strokeStyle = '#c18d41'; ctx.stroke();
       } else {
         const xs = d2.method === 'left' ? x0 : (d2.method === 'right' ? x1 : 0.5 * (x0 + x1));
         const ys = fn(xs); sum += ys * dx;
         const sy = toY(ys);
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+        ctx.fillStyle = 'rgba(116, 131, 203, 0.22)';
         ctx.fillRect(sx0, Math.min(sy, y0), sx1 - sx0, Math.abs(y0 - sy));
-        ctx.strokeStyle = '#38bdf8'; ctx.strokeRect(sx0, Math.min(sy, y0), sx1 - sx0, Math.abs(y0 - sy));
+        ctx.strokeStyle = '#7483cb'; ctx.strokeRect(sx0, Math.min(sy, y0), sx1 - sx0, Math.abs(y0 - sy));
       }
     }
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+    ctx.strokeStyle = '#3f4048'; ctx.lineWidth = 3;
     ctx.beginPath();
     for (let px = padL; px <= w - padR; px += 2) {
       const x = xMin + ((px - padL) / pw) * (xMax - xMin);
@@ -421,10 +469,10 @@ function drawLab() {
 
     const exact = F(d2.b) - F(0);
     hudLines.value = [
-      { label: 'Subdivisions n :', value: d2.n, color: '#fbbf24' },
-      { label: 'Somme S_n :', value: sum.toFixed(4), color: '#fbbf24' },
-      { label: 'Intégrale exacte :', value: exact.toFixed(4), color: '#38bdf8' },
-      { label: 'Erreur |I - S_n| :', value: Math.abs(exact - sum).toFixed(5), color: '#34d399' }
+      { label: 'Subdivisions n :', value: d2.n, color: '#c18d41' },
+      { label: 'Somme S_n :', value: sum.toFixed(4), color: '#c18d41' },
+      { label: 'Intégrale exacte :', value: exact.toFixed(4), color: '#7483cb' },
+      { label: 'Erreur |I - S_n| :', value: Math.abs(exact - sum).toFixed(5), color: '#5a9b79' }
     ];
   } else if (activeLab.value === 'revolution') {
     const presets = {
@@ -494,15 +542,15 @@ function drawLab() {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
 
     hudLines.value = [
-      { label: 'Angle θ :', value: d3.theta + '°', color: '#fbbf24' },
-      { label: 'Rayon R(x_k) :', value: Rk.toFixed(3), color: '#38bdf8' },
-      { label: 'Rayon r(x_k) :', value: rk.toFixed(3), color: '#c084fc' },
-      { label: 'Volume V(θ) :', value: ((d3.theta / 360) * p.vol).toFixed(2) + ' u³', color: '#34d399' }
+      { label: 'Angle θ :', value: d3.theta + '°', color: '#c18d41' },
+      { label: 'Rayon R(x_k) :', value: Rk.toFixed(3), color: '#7483cb' },
+      { label: 'Rayon r(x_k) :', value: rk.toFixed(3), color: '#9183c7' },
+      { label: 'Volume V(θ) :', value: ((d3.theta / 360) * p.vol).toFixed(2) + ' u³', color: '#5a9b79' }
     ];
   } else {
     const ox = w / 2, oy = h / 2, sx = w / 11, sy = h / 6.5;
     const toX = x => ox + x * sx, toY = y => oy - y * sy, fromX = px => (px - ox) / sx;
-    ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+    ctx.strokeStyle = '#b8bac6'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(w, oy); ctx.moveTo(ox, 0); ctx.lineTo(ox, h); ctx.stroke();
 
     const evalF = x => d4.fn === 'sin' ? Math.sin(x) : d4.fn === 'cos' ? Math.cos(x) : d4.fn === 'exp' ? Math.exp(x) : d4.fn === 'geom' ? 1 / (1 - x) : Math.log(1 + x);
@@ -518,7 +566,7 @@ function drawLab() {
       return s;
     };
 
-    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3;
+    ctx.strokeStyle = '#7483cb'; ctx.lineWidth = 3;
     ctx.beginPath();
     let st = false;
     for (let px = 0; px <= w; px += 2) {
@@ -529,7 +577,7 @@ function drawLab() {
     }
     ctx.stroke();
 
-    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#c18d41'; ctx.lineWidth = 2.5;
     ctx.beginPath(); st = false;
     for (let px = 0; px <= w; px += 2) {
       const x = fromX(px), y = evalP(x, d4.n);
@@ -540,8 +588,8 @@ function drawLab() {
     ctx.stroke();
 
     hudLines.value = [
-      { label: 'Ordre Taylor n :', value: d4.n, color: '#fbbf24' },
-      { label: 'Rayon R :', value: (d4.fn === 'geom' || d4.fn === 'ln') ? 'R = 1' : 'R = ∞', color: '#34d399' }
+      { label: 'Ordre Taylor n :', value: d4.n, color: '#c18d41' },
+      { label: 'Rayon R :', value: (d4.fn === 'geom' || d4.fn === 'ln') ? 'R = 1' : 'R = ∞', color: '#5a9b79' }
     ];
   }
 }
@@ -587,75 +635,106 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.app-shell { min-height: 100vh; display: flex; flex-direction: column; background: #050811; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
-.app-shell.projector { font-size: 112%; }
-.navbar { position: sticky; top: 0; z-index: 50; background: rgba(5,8,17,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid #1e293b; padding: 12px 24px; }
-.nav-inner { max-width: 1360px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
-.brand { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.ets-logo { background: #ef3e42; color: #fff; font-weight: 900; padding: 6px 12px; border-radius: 8px; box-shadow: 0 0 18px rgba(239,62,66,0.4); }
-.brand-title { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-.badge { font-size: 11px; background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); padding: 2px 8px; border-radius: 99px; font-family: monospace; }
-.brand-sub { font-size: 12px; color: #94a3b8; }
-.nav-tabs { display: flex; gap: 6px; background: #0f172a; padding: 4px; border-radius: 10px; border: 1px solid #1e293b; }
-.nav-btn { background: transparent; border: none; color: #94a3b8; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
-.nav-btn.active { background: #ef3e42; color: #fff; }
-.btn-outline { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.btn-outline.active { border-color: #38bdf8; color: #38bdf8; }
-.hero-section { position: relative; overflow: hidden; padding: 64px 24px; border-bottom: 1px solid #1e293b; }
-.hero-bg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.hero-grid { max-width: 1360px; margin: 0 auto; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 40px; align-items: center; position: relative; z-index: 2; }
-@media (max-width: 960px) { .hero-grid { grid-template-columns: 1fr; } }
-.hero-pill { display: inline-flex; align-items: center; gap: 8px; background: #0f172a; border: 1px solid rgba(239,62,66,0.4); color: #fca5a5; padding: 6px 14px; border-radius: 99px; font-size: 11px; font-weight: 700; margin-bottom: 18px; }
-.dot { width: 8px; height: 8px; background: #ef3e42; border-radius: 50%; }
-.hero-h1 { font-size: clamp(32px, 4vw, 54px); font-weight: 900; line-height: 1.08; margin-bottom: 18px; }
-.grad-text { background: linear-gradient(90deg, #38bdf8, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.hero-p { color: #cbd5e1; font-size: 17px; line-height: 1.6; margin-bottom: 24px; max-width: 620px; }
-.hero-actions { display: flex; gap: 12px; margin-bottom: 28px; }
-.btn-primary { background: #ef3e42; color: #fff; border: none; padding: 13px 22px; border-radius: 10px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 24px rgba(239,62,66,0.35); }
-.btn-primary.full { width: 100%; margin-top: 8px; }
-.btn-secondary { background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 13px 22px; border-radius: 10px; font-weight: 600; cursor: pointer; }
-.metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding-top: 20px; border-top: 1px solid #1e293b; }
-.metrics-row strong { display: block; font-size: 20px; font-family: monospace; }
-.metrics-row span { font-size: 12px; color: #94a3b8; }
-.hero-card { background: rgba(15,23,42,0.85); border: 1px solid rgba(56,189,248,0.3); border-radius: 18px; padding: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
-.card-header, .card-footer { display: flex; justify-content: space-between; font-family: monospace; font-size: 12px; color: #38bdf8; }
-.card-header { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; }
-.card-footer { margin-top: 10px; color: #94a3b8; }
-.status-ok { color: #34d399; }
-.mini-canvas { width: 100%; height: 280px; background: #060a14; border-radius: 10px; display: block; }
-.bento-section { max-width: 1360px; margin: 0 auto; padding: 56px 24px; width: 100%; }
-.sec-head { text-align: center; margin-bottom: 36px; }
-.eyebrow { font-family: monospace; font-size: 12px; color: #38bdf8; display: block; margin-bottom: 6px; }
-.sec-head h2 { font-size: 30px; font-weight: 800; margin-bottom: 8px; }
-.sec-head p { color: #94a3b8; }
-.bento-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-@media (max-width: 860px) { .bento-grid { grid-template-columns: 1fr; } }
-.bento-card { background: #131c31; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s, border-color 0.2s; }
-.bento-card:hover { transform: translateY(-4px); border-color: #38bdf8; }
-.bento-meta { display: flex; justify-content: space-between; margin-bottom: 14px; }
-.mod-badge { font-family: monospace; font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,0.12); padding: 4px 10px; border-radius: 6px; }
-.mod-weeks { font-size: 12px; color: #94a3b8; }
-.bento-card h3 { font-size: 20px; margin-bottom: 8px; }
-.bento-card p { color: #cbd5e1; font-size: 14px; line-height: 1.5; margin-bottom: 16px; }
-.formula-box { font-family: monospace; font-size: 13px; background: #050811; border: 1px solid #1e293b; padding: 10px 14px; border-radius: 8px; color: #fbbf24; margin-bottom: 16px; }
-.bento-link { display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid #1e293b; color: #38bdf8; font-weight: 700; font-size: 13px; }
-.studio-container { max-width: 1400px; margin: 0 auto; padding: 24px; width: 100%; }
-.studio-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #1e293b; }
-.lab-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
-.lab-tab { background: #131c31; border: 1px solid #1e293b; color: #94a3b8; padding: 8px 16px; border-radius: 10px; font-weight: 600; cursor: pointer; }
-.lab-tab.active { border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.12); }
-.studio-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
-@media (max-width: 1024px) { .studio-grid { grid-template-columns: 1fr; } }
-.stage-card { position: relative; background: #131c31; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; }
-.stage-canvas { width: 100%; height: 540px; display: block; background: #060a14; cursor: crosshair; }
-.hud-box { position: absolute; top: 14px; left: 14px; background: rgba(5,8,17,0.88); border: 1px solid #1e293b; border-radius: 10px; padding: 12px 16px; font-family: monospace; font-size: 12px; min-width: 220px; pointer-events: none; }
-.hud-line { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
-.controls-card { background: #131c31; border: 1px solid #1e293b; border-radius: 16px; padding: 20px; }
-.controls-card h3 { font-size: 15px; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 1px solid #1e293b; }
-.ctrl-group { margin-bottom: 16px; }
-.ctrl-group label { display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 6px; }
-.ctrl-group select, .ctrl-group input[type="range"] { width: 100%; }
-.ctrl-group select { background: #050811; color: #fff; border: 1px solid #334155; padding: 8px; border-radius: 8px; }
-.hint { font-size: 12px; color: #94a3b8; line-height: 1.5; }
-.footer { margin-top: auto; border-top: 1px solid #1e293b; padding: 18px; text-align: center; font-size: 12px; color: #64748b; }
+:global(*) { box-sizing: border-box; }
+:global(body) { margin: 0; background: #f5f5f7; color: #1d1d1f; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
+:global(button), :global(select), :global(input) { font: inherit; }
+.app-shell { --ink:#1d1d1f; --muted:#6e6e73; --line:rgba(29,29,31,.1); --blue:#1677ff; min-height:100vh; display:flex; flex-direction:column; background:#f5f5f7; color:var(--ink); }
+.app-shell.projector { font-size:112%; }
+.intro-page { min-height:100svh; position:relative; overflow:hidden; isolation:isolate; background:radial-gradient(ellipse at 74% 46%,#f0f1fb 0%,#f6f6f8 42%,#f5f5f7 76%); }
+.intro-art { position:absolute; inset:0; width:100%; height:100%; z-index:0; touch-action:pan-y; }
+.intro-topline { position:absolute;z-index:1; left:clamp(24px,5vw,76px); right:clamp(24px,5vw,76px); top:34px; display:flex; align-items:center; gap:12px; color:#56565c; font-size:13px; letter-spacing:.02em; }
+.intro-mark { width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#1d1d1f;color:white;font-family:Georgia,serif;font-size:20px; }
+.intro-topline i { color:#aaa; font-style:normal; padding:0 3px; }
+.intro-live { margin-left:auto; display:flex;align-items:center;gap:8px;color:#77777d;font-size:12px; }
+.intro-live b { width:6px;height:6px;border-radius:50%;background:#65b98c;box-shadow:0 0 0 4px rgba(101,185,140,.12); }
+.intro-content { position:absolute;z-index:1;left:clamp(28px,11.2vw,172px);top:50%;transform:translateY(-48%);width:min(530px,50vw); }
+.intro-kicker { color:#7a7a82;font-size:11px;font-weight:650;letter-spacing:.17em;margin-bottom:23px; }
+.intro-content h1 { font-size:clamp(54px,7.4vw,100px);line-height:.98;letter-spacing:-.075em;font-weight:650;margin:0;color:#222226; }
+.intro-content h1 em { font-style:normal;color:#8e8fd4; }
+.intro-content p { font-size:18px;line-height:1.55;color:#6e6e73;max-width:390px;margin:25px 0 28px; }
+.intro-enter { border:0;border-radius:999px;background:#1d1d1f;color:white;padding:15px 22px 15px 24px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 9px 25px rgba(29,29,31,.13);transition:transform .2s,background .2s; }
+.intro-enter span { padding-left:17px;font-size:17px; }
+.intro-enter:hover { transform:translateY(-2px);background:#353539; }
+.intro-hint { display:flex;align-items:center;gap:10px;color:#929299;font-size:11px;margin-top:24px;letter-spacing:.015em; }
+.hint-line { width:24px;height:1px;background:#b7b7be; }
+.intro-equation { position:absolute;z-index:1;color:rgba(75,79,117,.48);font-family:Georgia,serif;font-size:20px;letter-spacing:.02em; }
+.equation-one { top:24%;right:17%;transform:rotate(-8deg); }
+.equation-two { bottom:26%;right:8%;transform:rotate(7deg);font-size:17px; }
+.intro-index { position:absolute;z-index:1;right:clamp(28px,5vw,76px);top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:12px;color:#8b8b91;font-size:10px;letter-spacing:.12em;writing-mode:vertical-rl; }
+.intro-index span:first-child { color:#414148;font-size:12px; }
+.index-rule { height:62px;width:1px;background:linear-gradient(#aaa,#ddd); }
+.intro-bottom { position:absolute;z-index:1;left:clamp(24px,5vw,76px);right:clamp(24px,5vw,76px);bottom:27px;display:flex;justify-content:space-between;color:#929299;font-size:11px;letter-spacing:.02em; }
+.intro-bottom b { font-weight:400;padding-left:6px; }
+.navbar { position:sticky;top:0;z-index:50;background:rgba(250,250,252,.78);backdrop-filter:blur(20px);border-bottom:1px solid rgba(29,29,31,.08);padding:12px 26px; }
+.nav-inner { max-width:1360px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px; }
+.brand { display:flex;align-items:center;gap:11px;cursor:pointer; }
+.ets-logo { background:#1d1d1f;color:#fff;font-size:13px;letter-spacing:-.04em;padding:8px 10px;border-radius:10px;font-weight:750; }
+.brand-title { font-weight:650;font-size:15px;display:flex;align-items:center;gap:8px;letter-spacing:-.02em; }
+.badge { font-size:10px;color:#77777d;background:#f0f0f2;padding:4px 7px;border-radius:99px;font-weight:500; }
+.brand-sub { font-size:11px;color:#8a8a90;margin-top:2px; }
+.nav-tabs { display:flex;gap:3px;background:#ededf0;padding:4px;border-radius:99px; }
+.nav-btn { background:transparent;border:0;color:#66666c;padding:9px 14px;border-radius:99px;font-size:12px;font-weight:550;cursor:pointer; }
+.nav-btn.active { background:white;color:#1d1d1f;box-shadow:0 1px 4px rgba(0,0,0,.09); }
+.btn-outline { background:rgba(255,255,255,.8);border:1px solid #d9d9de;color:#44444b;padding:9px 14px;border-radius:99px;font-size:12px;font-weight:550;cursor:pointer; }
+.btn-outline.active { border-color:#9bbdf5;color:#1769d1;background:#f3f8ff; }
+.main-content { flex:1; }
+.hero-section { position:relative;overflow:hidden;padding:74px 30px 60px;border-bottom:1px solid var(--line);background:radial-gradient(ellipse at 70% 38%,#e8eafa 0%,#f5f5f7 40%,#f5f5f7 78%); }
+.hero-bg-canvas { position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.5; }
+.hero-grid { max-width:1280px;margin:0 auto;display:grid;grid-template-columns:1.05fr .95fr;gap:70px;align-items:center;position:relative;z-index:2; }
+.hero-pill { display:inline-flex;align-items:center;gap:8px;color:#777780;padding:7px 12px;border-radius:99px;font-size:10px;font-weight:600;letter-spacing:.09em;margin-bottom:21px; }
+.dot { width:6px;height:6px;background:#8791d5;border-radius:50%; }
+.hero-h1 { font-size:clamp(38px,5vw,66px);font-weight:650;line-height:1.02;letter-spacing:-.065em;margin:0 0 20px; }
+.grad-text { color:#8586c9;background:none;-webkit-text-fill-color:currentColor; }
+.hero-p { color:#6e6e73;font-size:16px;line-height:1.65;margin:0 0 25px;max-width:620px; }
+.hero-actions { display:flex;flex-wrap:wrap;gap:10px;margin-bottom:34px; }
+.btn-primary { background:#1d1d1f;color:white;border:0;padding:13px 19px;border-radius:99px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 5px 16px rgba(0,0,0,.1); }
+.btn-primary:hover { background:#3a3a3f; }
+.btn-primary.full { width:100%;margin-top:8px; }
+.btn-secondary { background:rgba(255,255,255,.7);color:#37373d;border:1px solid #dddde2;padding:13px 18px;border-radius:99px;font-weight:550;font-size:13px;cursor:pointer; }
+.metrics-row { display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding-top:20px;border-top:1px solid var(--line); }
+.metrics-row strong { display:block;font-size:19px;font-weight:620;letter-spacing:-.04em; }
+.metrics-row span { font-size:10px;color:#828289; }
+.hero-card { background:rgba(255,255,255,.57);border:1px solid rgba(255,255,255,.8);border-radius:24px;padding:16px;box-shadow:0 24px 70px rgba(66,68,104,.12);backdrop-filter:blur(18px); }
+.card-header,.card-footer { display:flex;justify-content:space-between;font-size:10px;color:#777780; }
+.card-header { margin-bottom:10px;padding:3px 3px 10px;border-bottom:1px solid rgba(29,29,31,.08); }
+.card-footer { margin-top:10px;color:#8c8c92; }
+.status-ok { color:#5b9c74; }
+.mini-canvas { width:100%;height:260px;background:linear-gradient(145deg,#f4f5fb,#ebeefa);border-radius:15px;display:block; }
+.bento-section { max-width:1280px;margin:0 auto;padding:54px 30px;width:100%; }
+.sec-head { text-align:center;margin-bottom:30px; }
+.eyebrow { font-size:10px;letter-spacing:.14em;color:#8586c9;display:block;margin-bottom:9px;font-weight:650; }
+.sec-head h2 { font-size:30px;font-weight:650;letter-spacing:-.05em;margin:0 0 8px; }
+.sec-head p { color:#77777e;font-size:14px; }
+.bento-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:14px; }
+.bento-card { background:rgba(255,255,255,.7);border:1px solid rgba(29,29,31,.07);border-radius:20px;padding:23px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:225px;transition:transform .2s,box-shadow .2s,border-color .2s; }
+.bento-card:hover { transform:translateY(-3px);border-color:#d3d4ee;box-shadow:0 14px 36px rgba(43,45,76,.08); }
+.bento-meta { display:flex;justify-content:space-between;margin-bottom:13px; }
+.mod-badge { font-size:9px;font-weight:650;letter-spacing:.08em;color:#7476b9;background:#f0f0fa;padding:6px 9px;border-radius:99px; }
+.mod-weeks { font-size:11px;color:#929299; }
+.bento-card h3 { font-size:18px;letter-spacing:-.035em;margin:0 0 8px;font-weight:620; }
+.bento-card p { color:#75757c;font-size:13px;line-height:1.55;margin:0 0 14px; }
+.formula-box { font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;background:#f6f6fa;border:1px solid #ededf2;padding:10px 12px;border-radius:10px;color:#7173ad;margin-bottom:14px; }
+.bento-link { display:flex;justify-content:space-between;padding-top:11px;border-top:1px solid rgba(29,29,31,.08);color:#6264aa;font-weight:600;font-size:12px; }
+.studio-container { max-width:1380px;margin:0 auto;padding:27px 30px;width:100%; }
+.studio-bar { display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-bottom:18px;padding-bottom:15px;border-bottom:1px solid var(--line); }
+.lab-buttons { display:flex;flex-wrap:wrap;gap:7px; }
+.lab-tab { background:rgba(255,255,255,.7);border:1px solid #e4e4e8;color:#66666c;padding:9px 14px;border-radius:99px;font-size:12px;font-weight:550;cursor:pointer; }
+.lab-tab.active { border-color:#bfc0e6;color:#6769b2;background:#f3f3fc; }
+.studio-grid { display:grid;grid-template-columns:1fr 320px;gap:16px; }
+.stage-card,.controls-card { background:rgba(255,255,255,.7);border:1px solid rgba(29,29,31,.08);border-radius:20px;overflow:hidden;box-shadow:0 8px 28px rgba(34,35,55,.04); }
+.stage-canvas { width:100%;height:540px;display:block;background:#f1f2f8;cursor:crosshair; }
+.hud-box { position:absolute;top:14px;left:14px;background:rgba(255,255,255,.88);border:1px solid rgba(29,29,31,.1);border-radius:12px;padding:12px 14px;font-size:11px;min-width:210px;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.05); }
+.hud-line { display:flex;justify-content:space-between;gap:16px;margin-bottom:4px;color:#707078; }
+.controls-card { padding:19px; }
+.controls-card h3 { font-size:14px;font-weight:620;padding-bottom:12px;margin:0 0 16px;border-bottom:1px solid var(--line);letter-spacing:-.02em; }
+.ctrl-group { margin-bottom:16px; }
+.ctrl-group label { display:block;font-size:12px;color:#66666d;margin-bottom:7px; }
+.ctrl-group select,.ctrl-group input[type=range] { width:100%; }
+.ctrl-group select { background:#fafafd;color:#303036;border:1px solid #dedee4;padding:9px;border-radius:10px;font-size:12px; }
+.ctrl-group input[type=range] { accent-color:#8586c9; }
+.hint { font-size:11px;color:#83838a;line-height:1.5; }
+.footer { margin-top:auto;border-top:1px solid var(--line);padding:17px;text-align:center;font-size:11px;color:#929299; }
+@media(max-width:960px) { .hero-grid{grid-template-columns:1fr;gap:32px}.intro-content{width:65vw}.studio-grid{grid-template-columns:1fr}.stage-canvas{height:460px} }
+@media(max-width:700px) { .navbar{padding:10px 15px}.nav-inner{gap:10px}.nav-tabs{order:3;width:100%;justify-content:center}.nav-btn{padding:8px 10px;font-size:11px}.brand-sub,.badge{display:none}.hero-section{padding:55px 19px 42px}.hero-grid{gap:28px}.metrics-row{grid-template-columns:repeat(2,1fr);row-gap:16px}.mini-canvas{height:210px}.bento-section{padding:40px 18px}.bento-grid{grid-template-columns:1fr}.studio-container{padding:20px 15px}.stage-canvas{height:380px}.intro-content{left:28px;top:44%;width:80vw}.intro-content h1{font-size:clamp(52px,13vw,78px)}.intro-content p{font-size:16px;max-width:310px}.intro-topline{top:22px;left:22px;right:22px}.intro-live{font-size:10px}.intro-index{right:17px;font-size:8px}.equation-one{top:20%;right:14%;font-size:16px}.equation-two{bottom:23%;right:9%;font-size:14px}.intro-bottom{left:22px;right:22px;bottom:20px;font-size:9px}.intro-bottom span:first-child{max-width:55%} }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after{scroll-behavior:auto!important;transition:none!important} }
 </style>
