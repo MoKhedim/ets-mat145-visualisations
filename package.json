@@ -1,0 +1,25 @@
+{
+    "name": "ets-mat145-visualisations",
+    "version": "2.0.0",
+    "private": true,
+    "description": "Plateforme interactive de visualisation mathématique pour le cours MAT145 (Calcul différentiel et intégral) à l'éTS Montréal",
+    "type": "module",
+    "scripts": {
+          "dev": "vite",
+          "build": "vite build",
+          "preview": "vite preview"
+    },
+    "dependencies": {
+          "katex": "^0.16.11",
+          "lucide-vue-next": "^0.446.0",
+          "three": "^0.169.0",
+          "vue": "^3.5.10"
+    },
+    "devDependencies": {
+          "@vitejs/plugin-vue": "^5.1.4",
+          "autoprefixer": "^10.4.20",
+          "postcss": "^8.4.47",
+          "tailwindcss": "^3.4.13",
+          "vite": "^5.4.8"
+    }
+}
