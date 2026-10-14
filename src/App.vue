@@ -87,6 +87,19 @@
         </aside>
       </section>
 
+      <section class="math-live-card" aria-live="polite" aria-label="Équations mathématiques en direct">
+        <div class="math-live-heading">
+          <div><div class="math-live-eyebrow"><span></span> LE CALCUL, EN DIRECT</div><h2>{{ currentPlay.mathTitle }}</h2></div>
+          <div class="math-live-status"><span></span> Suit vos réglages</div>
+        </div>
+        <div class="math-equation-grid" :class="`equations-${liveEquations.length}`">
+          <article v-for="equation in liveEquations" :key="equation.label" class="math-equation">
+            <div class="math-equation-label">{{ equation.label }}</div>
+            <div class="math-equation-render" v-html="renderMath(equation.latex)"></div>
+          </article>
+        </div>
+      </section>
+
       <section class="play-prompts"><div class="prompt-label">Essayez un petit défi</div><button v-for="prompt in playPrompts" :key="prompt.id" @click="runScenario(prompt.id)">{{ prompt.text }} <span>↗</span></button></section>
     </main>
 
@@ -98,6 +111,8 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 const activeView = ref('studio');
 const introVisible = ref(true);
@@ -130,11 +145,89 @@ const playPrompts = [
   { id: 4, text: 'Voir où la série décroche' }
 ];
 const currentPlay = computed(() => ({
-  derivative: { heading: 'Une tangente en mouvement', caption: 'Le point glisse. La sécante se redresse.', controlTitle: 'Trouver la pente' },
-  riemann: { heading: 'Une aire qui se construit', caption: 'Ajoutez des morceaux. Regardez l’écart diminuer.', controlTitle: 'Construire une aire' },
-  revolution: { heading: 'Une courbe prend du volume', caption: 'Faites tourner le profil et découpez une tranche.', controlTitle: 'Donner du volume' },
-  taylor: { heading: 'Une fonction, plusieurs approches', caption: 'Les polynômes s’approchent… jusqu’à leur limite.', controlTitle: 'Approcher la courbe' }
+  derivative: { heading: 'Une tangente en mouvement', caption: 'Le point glisse. La sécante se redresse.', controlTitle: 'Trouver la pente', mathTitle: 'De la sécante à la dérivée' },
+  riemann: { heading: 'Une aire qui se construit', caption: 'Ajoutez des morceaux. Regardez l’écart diminuer.', controlTitle: 'Construire une aire', mathTitle: 'La somme qui approche une intégrale' },
+  revolution: { heading: 'Une courbe prend du volume', caption: 'Faites tourner le profil et découpez une tranche.', controlTitle: 'Donner du volume', mathTitle: 'Des tranches pour construire le volume' },
+  taylor: { heading: 'Une fonction, plusieurs approches', caption: 'Les polynômes s’approchent… jusqu’à leur limite.', controlTitle: 'Approcher la courbe', mathTitle: 'Une fonction approchée par sa série' }
 }[activeLab.value]));
+
+const liveEquations = computed(() => {
+  const fmt = value => Number(value).toFixed(3);
+  if (activeLab.value === 'derivative') {
+    const functions = {
+      parabola: { f: x => x * x - 2 * x, expression: 'x^2-2x' },
+      cubic: { f: x => 0.25 * x ** 3 - 0.75 * x + 0.5, expression: '\\frac14x^3-\\frac34x+\\frac12' },
+      trig: { f: x => 1.8 * Math.sin(x) + 0.4 * Math.cos(2 * x), expression: '1.8\\sin(x)+0.4\\cos(2x)' }
+    };
+    const curve = functions[d1.fn];
+    const mSec = (curve.f(d1.a + d1.h) - curve.f(d1.a)) / d1.h;
+    const mTan = d1.fn === 'parabola' ? 2 * d1.a - 2 : d1.fn === 'cubic' ? 0.75 * d1.a ** 2 - 0.75 : 1.8 * Math.cos(d1.a) - 0.8 * Math.sin(2 * d1.a);
+    return [
+      { label: 'La définition', latex: `f'(a)=\\lim_{h\\to0}\\frac{f(a+h)-f(a)}{h}\\qquad f(x)=${curve.expression}` },
+      { label: 'Vos valeurs maintenant', latex: `m_{\\mathrm{séc}}=${fmt(mSec)}\\quad\\longrightarrow\\quad f'(${fmt(d1.a)})=${fmt(mTan)}\\quad |\\Delta m|=${fmt(Math.abs(mSec - mTan))}` }
+    ];
+  }
+  if (activeLab.value === 'riemann') {
+    const fn = x => Math.sin(x) + 1.4;
+    const dx = d2.b / d2.n;
+    let sum = 0;
+    if (d2.method === 'trapezoid') {
+      for (let i = 0; i < d2.n; i++) sum += 0.5 * (fn(i * dx) + fn((i + 1) * dx)) * dx;
+    } else {
+      for (let i = 0; i < d2.n; i++) {
+        const x = d2.method === 'left' ? i * dx : d2.method === 'right' ? (i + 1) * dx : (i + 0.5) * dx;
+        sum += fn(x) * dx;
+      }
+    }
+    const exact = -Math.cos(d2.b) + 1 + 1.4 * d2.b;
+    const sample = d2.method === 'trapezoid' ? '\\frac{f(x_i)+f(x_{i+1})}{2}' : `f(${d2.method === 'left' ? 'x_i' : d2.method === 'right' ? 'x_{i+1}' : 'x_{i+\\frac12}'})`;
+    return [
+      { label: d2.method === 'trapezoid' ? 'Règle des trapèzes' : 'Somme de Riemann', latex: `\\Delta x=\\frac{b}{n}=${fmt(dx)},\\quad S_n=\\sum_{i=0}^{${d2.n - 1}} ${sample}\\,\\Delta x` },
+      { label: 'Somme et valeur exacte', latex: `S_{${d2.n}}=${fmt(sum)}\\quad\\; I=\\int_0^{${fmt(d2.b)}}(\\sin x+1.4)\\,dx=${fmt(exact)}\\quad\\; |I-S_n|=${fmt(Math.abs(exact - sum))}` }
+    ];
+  }
+  if (activeLab.value === 'revolution') {
+    const presets = {
+      paraboloid: { outer: '\\sqrt{x}', inner: '0', title: 'Disques' },
+      washer: { outer: '\\sqrt{x}+0.6', inner: '0.25x', title: 'Rondelles' },
+      vase: { outer: '1.3+0.55\\cos(1.5x)', inner: '0.35', title: 'Rondelles' }
+    };
+    const shape = presets[d3.preset];
+    const volume = 2 * Math.PI * (d3.theta / 360) * d3.sliceX;
+    return [
+      { label: `Méthode des ${shape.title.toLowerCase()}`, latex: `V=\\pi\\int_a^b\\!\\left(R(x)^2-r(x)^2\\right)dx,\\quad R(x)=${shape.outer},\\;r(x)=${shape.inner}` },
+      { label: 'La tranche sélectionnée', latex: `x_k=${fmt(d3.sliceX)},\\quad R(x_k)=${fmt(d3.preset === 'paraboloid' ? Math.sqrt(d3.sliceX) : d3.preset === 'washer' ? Math.sqrt(d3.sliceX) + 0.6 : 1.3 + 0.55 * Math.cos(1.5 * d3.sliceX))},\\quad\\theta=${d3.theta}^\\circ` }
+    ];
+  }
+  const coefficient = k => {
+    if (d4.fn === 'sin') return [0, 1, 0, -1][k % 4] / fact(k);
+    if (d4.fn === 'cos') return [1, 0, -1, 0][k % 4] / fact(k);
+    if (d4.fn === 'exp') return 1 / fact(k);
+    if (d4.fn === 'geom') return 1;
+    return k === 0 ? 0 : (k % 2 === 1 ? 1 : -1) / k;
+  };
+  const terms = [];
+  for (let k = 0; k <= d4.n; k++) {
+    const c = coefficient(k);
+    if (Math.abs(c) < 1e-12) continue;
+    const magnitude = Math.abs(c);
+    const coefficientText = k > 0 && Math.abs(magnitude - 1) < 1e-12 ? '' : fmt(magnitude);
+    const power = k === 0 ? '' : k === 1 ? 'x' : `x^{${k}}`;
+    terms.push({ negative: c < 0, value: `${coefficientText}${power}` || '0' });
+  }
+  const polynomial = terms.map((term, index) => `${index === 0 ? (term.negative ? '-' : '') : (term.negative ? ' - ' : ' + ')}${term.value}`).join('') || '0';
+  const functions = { sin: '\\sin x', cos: '\\cos x', exp: 'e^x', geom: '\\frac{1}{1-x}', ln: '\\ln(1+x)' };
+  const series = { sin: '\\sum_{k=0}^{\\infty}\\frac{(-1)^k x^{2k+1}}{(2k+1)!}', cos: '\\sum_{k=0}^{\\infty}\\frac{(-1)^k x^{2k}}{(2k)!}', exp: '\\sum_{k=0}^{\\infty}\\frac{x^k}{k!}', geom: '\\sum_{k=0}^{\\infty}x^k', ln: '\\sum_{k=1}^{\\infty}\\frac{(-1)^{k+1}x^k}{k}' };
+  const radius = (d4.fn === 'geom' || d4.fn === 'ln') ? 1 : '\\infty';
+  return [
+    { label: 'Série de Maclaurin', latex: `${functions[d4.fn]}=${series[d4.fn]}\\qquad P_{${d4.n}}(x)=${polynomial}` },
+    { label: 'Ordre et domaine de convergence', latex: `\\text{ordre }n=${d4.n},\\qquad R=${radius}\\qquad\\text{(convergence pour }|x|<R\\text{)}` }
+  ];
+});
+
+function renderMath(latex) {
+  return katex.renderToString(latex, { throwOnError: false, displayMode: true, strict: 'ignore' });
+}
 
 function enterPlayground() {
   introVisible.value = false;
@@ -622,6 +715,18 @@ onUnmounted(() => {
 .playground-controls .btn-primary { width:100%;margin-top:2px;padding:11px 14px;font-size:11px; }
 .playground-controls .btn-primary span { margin-left:8px; }
 .control-footnote { border-top:1px solid rgba(29,29,31,.08);padding-top:11px;margin-top:13px;color:#92929a;font-size:10px;line-height:1.45; }
+.math-live-card { margin-top:15px;padding:20px 22px 22px;border:1px solid rgba(29,29,31,.07);border-radius:20px;background:rgba(255,255,255,.74);box-shadow:0 8px 26px rgba(34,35,55,.035); }
+.math-live-heading { display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px; }
+.math-live-eyebrow { display:flex;align-items:center;gap:8px;color:#8b8b94;font-size:9px;font-weight:650;letter-spacing:.14em; }
+.math-live-eyebrow span,.math-live-status span { width:6px;height:6px;border-radius:50%;background:#78b795;box-shadow:0 0 0 4px rgba(120,183,149,.12); }
+.math-live-heading h2 { margin:5px 0 0;font-size:17px;font-weight:620;letter-spacing:-.035em; }
+.math-live-status { display:flex;align-items:center;gap:8px;color:#85858d;font-size:10px;white-space:nowrap; }
+.math-equation-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+.math-equation { min-width:0;padding:14px 15px;border:1px solid rgba(29,29,31,.06);border-radius:13px;background:linear-gradient(145deg,rgba(249,249,252,.92),rgba(245,245,250,.72));overflow-x:auto; }
+.math-equation-label { margin-bottom:10px;color:#898991;font-size:10px;letter-spacing:.025em; }
+.math-equation-render { color:#42435f;font-size:15px; }
+.math-equation-render .katex-display { margin:.4em 0; }
+.math-equation-render .katex { white-space:nowrap; }
 .play-prompts { display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:16px 2px 0; }
 .prompt-label { color:#92929a;font-size:10px;letter-spacing:.06em;margin-right:5px; }
 .play-prompts button { display:inline-flex;align-items:center;gap:9px;border:1px solid rgba(29,29,31,.07);background:rgba(255,255,255,.62);border-radius:999px;padding:8px 11px;color:#696970;font-size:10px;cursor:pointer;transition:background .15s,border-color .15s; }
@@ -629,5 +734,5 @@ onUnmounted(() => {
 .play-prompts button span { color:#8b8dc9; }
 .playground-shell ~ .footer { display:none; }
 @media(max-width:950px) { .playground-heading{align-items:flex-start;flex-direction:column;gap:15px}.playground-controls{width:255px;right:12px}.playground-stage .stage-canvas{height:62vh;min-height:440px} }
-@media(max-width:640px) { .header-note{display:none}.playground-shell{padding:24px 14px 22px}.playground-heading{margin-bottom:14px}.playground-heading h1{font-size:31px}.playground-heading p{font-size:12px;max-width:300px}.play-modes{width:100%;justify-content:space-between;gap:1px;padding:4px}.play-mode{padding:8px 9px;font-size:10px;gap:5px}.mode-symbol{font-size:13px}.playground-stage{min-height:720px;overflow:visible;border-radius:18px}.playground-stage .stage-canvas{height:720px;min-height:720px;border-radius:18px}.playground-controls{top:auto;bottom:14px;left:12px;right:12px;width:auto;padding:15px}.playground-controls .ctrl-group{margin-bottom:10px}.control-heading{margin-bottom:12px}.playground-controls .control-footnote{display:none}.playground-stage .hud-box{top:62px;bottom:auto;left:12px;min-width:185px;padding:9px 10px;font-size:10px}.playground-stage .scene-title{left:13px;top:14px}.scene-title strong{font-size:12px}.scene-title small{font-size:10px}.stage-export{right:12px;top:12px}.drag-tip{right:16px;bottom:443px;max-width:120px;text-align:right}.play-prompts{gap:6px;padding-top:12px}.prompt-label{width:100%;margin:0 0 2px 2px}.play-prompts button{font-size:9px;padding:7px 9px}.intro-content{width:80vw} }
+@media(max-width:640px) { .header-note{display:none}.playground-shell{padding:24px 14px 22px}.playground-heading{margin-bottom:14px}.playground-heading h1{font-size:31px}.playground-heading p{font-size:12px;max-width:300px}.play-modes{width:100%;justify-content:space-between;gap:1px;padding:4px}.play-mode{padding:8px 9px;font-size:10px;gap:5px}.mode-symbol{font-size:13px}.playground-stage{min-height:720px;overflow:visible;border-radius:18px}.playground-stage .stage-canvas{height:720px;min-height:720px;border-radius:18px}.playground-controls{top:auto;bottom:14px;left:12px;right:12px;width:auto;padding:15px}.playground-controls .ctrl-group{margin-bottom:10px}.control-heading{margin-bottom:12px}.playground-controls .control-footnote{display:none}.playground-stage .hud-box{top:62px;bottom:auto;left:12px;min-width:185px;padding:9px 10px;font-size:10px}.playground-stage .scene-title{left:13px;top:14px}.scene-title strong{font-size:12px}.scene-title small{font-size:10px}.stage-export{right:12px;top:12px}.drag-tip{right:16px;bottom:443px;max-width:120px;text-align:right}.math-live-card{padding:16px 14px}.math-live-heading{align-items:flex-start}.math-live-heading h2{font-size:15px}.math-live-status{font-size:9px}.math-equation-grid{grid-template-columns:1fr;gap:8px}.math-equation{padding:12px}.math-equation-render{font-size:13px}.play-prompts{gap:6px;padding-top:12px}.prompt-label{width:100%;margin:0 0 2px 2px}.play-prompts button{font-size:9px;padding:7px 9px}.intro-content{width:80vw} }
 </style>
