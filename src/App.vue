@@ -1,13 +1,13 @@
 <template>
-  <div :class="['app-shell', { projector: projectorMode }]">
-    <main v-if="activeView === 'intro'" class="intro-page">
+  <div :class="['app-shell', { projector: projectorMode, 'intro-active': introVisible }]">
+    <main v-if="introVisible" class="intro-page">
       <canvas ref="introCanvas" class="intro-art" @pointermove="moveIntroArt" @pointerdown="moveIntroArt"></canvas>
       <div class="intro-topline"><span class="intro-mark">∫</span><span>ÉTS Montréal <i>·</i> MAT145</span><span class="intro-live"><b></b> Une expérience interactive</span></div>
       <div class="intro-content">
         <div class="intro-kicker">CALCUL DIFFÉRENTIEL ET INTÉGRAL</div>
         <h1>Les mathématiques<br/>prennent <em>forme.</em></h1>
         <p>Explorez les idées derrière le calcul, une courbe à la fois.</p>
-        <button class="intro-enter" @click="switchView('landing')">Entrer dans le studio <span>↗</span></button>
+        <button class="intro-enter" @click="enterPlayground">Entrer dans le playground <span>↗</span></button>
         <div class="intro-hint"><span class="hint-line"></span>Déplacez le pointeur pour explorer</div>
       </div>
       <div class="intro-equation equation-one">∫<sub>a</sub><sup>b</sup> f(x) dx</div>
@@ -15,21 +15,17 @@
       <div class="intro-index"><span>01</span><span class="index-rule"></span><span>04</span><span>CONCEPTS À EXPLORER</span></div>
       <div class="intro-bottom"><span>Un espace pour voir, toucher et comprendre.</span><span>MAT145 STUDIO <b>©</b> 2026</span></div>
     </main>
-    <header v-if="activeView !== 'intro'" class="navbar">
+    <header class="navbar">
       <div class="nav-inner">
-        <div class="brand" @click="switchView('landing')">
+        <div class="brand" @click="switchView('studio')">
           <div class="ets-logo">ÉTS</div>
           <div>
             <div class="brand-title">MAT145 Studio <span class="badge">ÉTS Montréal</span></div>
-            <div class="brand-sub">Calcul différentiel et intégral • Laboratoire visuel interactif</div>
+            <div class="brand-sub">Calcul différentiel et intégral • Playground interactif</div>
           </div>
         </div>
 
-        <nav class="nav-tabs">
-          <button :class="['nav-btn', { active: activeView === 'landing' }]" @click="switchView('landing')">Accueil</button>
-          <button :class="['nav-btn', { active: activeView === 'studio' }]" @click="switchView('studio')">Explorer les laboratoires</button>
-          <button :class="['nav-btn', { active: activeView === 'presets' }]" @click="switchView('presets')">Scénarios</button>
-        </nav>
+        <div class="header-note"><span class="header-note-dot"></span> Un espace pour explorer le calcul</div>
 
         <button :class="['btn-outline', { active: projectorMode }]" @click="projectorMode = !projectorMode">
           Mode présentation
@@ -37,192 +33,61 @@
       </div>
     </header>
 
-    <!-- VUE 1 : LANDING PAGE AVEC ANIMATIONS TEMPS RÉEL -->
-    <main v-if="activeView === 'landing'" class="main-content">
-      <section class="hero-section">
-        <canvas ref="heroWaveCanvas" class="hero-bg-canvas"></canvas>
-        <div class="hero-grid">
-          <div class="hero-copy">
-            <div class="hero-pill">
-              <span class="dot"></span>
-              <span>ÉTS MONTRÉAL • DÉPARTEMENT DES ENSEIGNEMENTS GÉNÉRAUX</span>
-            </div>
-            <h1 class="hero-h1">
-              Donnez vie aux concepts de <span class="grad-text">MAT145 en Temps Réel.</span>
-            </h1>
-            <p class="hero-p">
-              Une plateforme web moderne conçue pour les professeurs, chargés de cours et étudiants de l'<strong>École de technologie supérieure</strong>. Illustrez les limites différentielles, les sommes de Riemann, les solides de révolution 3D (disques et rondelles) et la convergence des séries de Taylor à 60 FPS.
-            </p>
-            <div class="hero-actions">
-              <button class="btn-primary" @click="openLab('derivative')">Explorer le studio</button>
-              <button class="btn-secondary" @click="switchView('presets')">Voir les scénarios</button>
-            </div>
-            <div class="metrics-row">
-              <div><strong>60 FPS</strong><span>Moteur Temps Réel</span></div>
-              <div><strong>4 Labs</strong><span>Syllabus MAT145</span></div>
-              <div><strong>2D & 3D</strong><span>Disques & Rondelles</span></div>
-              <div><strong>100%</strong><span>Compatible Moodle</span></div>
-            </div>
-          </div>
-
-          <div class="hero-card">
-            <div class="card-header">
-              <span>● SIMULATION EN DIRECT : ONDE & TANGENTE</span>
-              <span class="status-ok">60 FPS Actif</span>
-            </div>
-            <canvas ref="heroMiniCanvas" class="mini-canvas"></canvas>
-            <div class="card-footer">
-              <span>f(x, t) = sin(x - ωt) · cos(0.4x)</span>
-              <span style="color:#c18d41">Riemann & Tangente</span>
-            </div>
-          </div>
+    <main class="playground-shell">
+      <section class="playground-heading">
+        <div>
+          <div class="play-eyebrow"><span></span> PLAYGROUND MAT145</div>
+          <h1>Jouez avec les idées.</h1>
+          <p>Attrapez une courbe. Changez un paramètre. Voyez ce qui se passe.</p>
         </div>
-      </section>
-
-      <section class="bento-section">
-        <div class="sec-head">
-          <span class="eyebrow">PROGRAMME OFFICIEL MAT145 — ÉTS MONTRÉAL</span>
-          <h2>Les 4 Laboratoires Visuels du Cours</h2>
-          <p>Cliquez sur un module pour lancer l'environnement de simulation mathématique.</p>
-        </div>
-        <div class="bento-grid">
-          <div v-for="mod in bentoCards" :key="mod.id" class="bento-card" @click="openLab(mod.id)">
-            <div>
-              <div class="bento-meta">
-                <span class="mod-badge">{{ mod.badge }}</span>
-                <span class="mod-weeks">{{ mod.weeks }}</span>
-              </div>
-              <h3>{{ mod.title }}</h3>
-              <p>{{ mod.desc }}</p>
-              <div class="formula-box">{{ mod.formula }}</div>
-            </div>
-            <div class="bento-link"><span>Lancer ce laboratoire</span><span>→</span></div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <!-- VUE 2 : STUDIO INTERACTIF -->
-    <main v-else-if="activeView === 'studio'" class="studio-container">
-      <div class="studio-bar">
-        <div class="lab-buttons">
-          <button v-for="m in bentoCards" :key="m.id" :class="['lab-tab', { active: activeLab === m.id }]" @click="selectLab(m.id)">
-            {{ m.shortTitle }}
+        <div class="play-modes" aria-label="Choisir une idée mathématique">
+          <button v-for="mode in playgroundModes" :key="mode.id" :class="['play-mode', { active: activeLab === mode.id }]" @click="selectLab(mode.id)">
+            <span class="mode-symbol">{{ mode.symbol }}</span><span>{{ mode.label }}</span>
           </button>
         </div>
-        <button class="btn-outline" @click="exportPNG">Exporter en PNG</button>
-      </div>
+      </section>
 
-      <div class="studio-grid">
-        <div class="stage-card">
-          <canvas ref="labCanvas" class="stage-canvas" @mousedown="onCanvasDown" @mousemove="onCanvasMove" @mouseup="onCanvasUp"></canvas>
+      <section class="play-stage-wrap">
+        <div class="stage-card playground-stage">
+          <canvas ref="labCanvas" class="stage-canvas" @pointerdown="onCanvasDown" @pointermove="onCanvasMove" @pointerup="onCanvasUp" @pointercancel="onCanvasUp"></canvas>
+          <div class="scene-title"><span class="scene-live"></span><div><strong>{{ currentPlay.heading }}</strong><small>{{ currentPlay.caption }}</small></div></div>
+          <button class="stage-export" @click="exportPNG" aria-label="Exporter la visualisation">↗ <span>Image</span></button>
           <div class="hud-box">
             <div v-for="(line, i) in hudLines" :key="i" class="hud-line">
               <span>{{ line.label }}</span>
               <strong :style="{ color: line.color }">{{ line.value }}</strong>
             </div>
           </div>
+          <div class="drag-tip">{{ activeLab === 'revolution' ? 'Glissez pour faire tourner' : activeLab === 'derivative' ? 'Glissez le point sur la courbe' : activeLab === 'riemann' ? 'Glissez pour ajouter des rectangles' : 'Ajustez l’ordre pour explorer' }}</div>
         </div>
 
-        <div class="controls-card">
-          <h3>Paramètres en direct</h3>
-
+        <aside class="controls-card playground-controls">
+          <div class="control-heading"><div><span>À VOUS DE JOUER</span><h2>{{ currentPlay.controlTitle }}</h2></div><button class="reset-control" @click="resetPlayground" aria-label="Réinitialiser les réglages">↺</button></div>
           <template v-if="activeLab === 'derivative'">
-            <div class="ctrl-group">
-              <label>Fonction f(x)</label>
-              <select v-model="d1.fn" @change="drawLab">
-                <option value="parabola">f(x) = x² - 2x (Parabole)</option>
-                <option value="cubic">f(x) = 0.25x³ - 0.75x + 0.5 (Cubique)</option>
-                <option value="trig">f(x) = 1.8 sin(x) + 0.4 cos(2x)</option>
-              </select>
-            </div>
-            <div class="ctrl-group">
-              <label>Point de tangence a : <strong>{{ d1.a.toFixed(2) }}</strong></label>
-              <input type="range" v-model.number="d1.a" min="-3" max="3" step="0.02" @input="drawLab" />
-            </div>
-            <div class="ctrl-group">
-              <label>Incrément Δx (h) : <strong>{{ d1.h.toFixed(3) }}</strong></label>
-              <input type="range" v-model.number="d1.h" min="0.005" max="2.4" step="0.005" @input="drawLab" />
-            </div>
-            <button class="btn-primary full" @click="animateHToZero">▶ Animer la limite h → 0</button>
+            <div class="ctrl-group"><label>Une courbe</label><select v-model="d1.fn" @change="drawLab"><option value="parabola">Parabole douce</option><option value="cubic">Courbe cubique</option><option value="trig">Vague composée</option></select></div>
+            <div class="ctrl-group"><label>Point de contact <strong>a = {{ d1.a.toFixed(2) }}</strong></label><input type="range" v-model.number="d1.a" min="-3" max="3" step="0.02" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Écart <strong>h = {{ d1.h.toFixed(3) }}</strong></label><input type="range" v-model.number="d1.h" min="0.005" max="2.4" step="0.005" @input="drawLab" /></div>
+            <button class="btn-primary full" @click="animateHToZero">Rapprocher les points <span>→</span></button>
           </template>
-
           <template v-else-if="activeLab === 'riemann'">
-            <div class="ctrl-group">
-              <label>Méthode d'intégration</label>
-              <select v-model="d2.method" @change="drawLab">
-                <option value="midpoint">Point Milieu (Erreur O(1/n²))</option>
-                <option value="trapezoid">Trapèzes (Erreur O(1/n²))</option>
-                <option value="left">Somme à Gauche (Erreur O(1/n))</option>
-                <option value="right">Somme à Droite (Erreur O(1/n))</option>
-              </select>
-            </div>
-            <div class="ctrl-group">
-              <label>Nombre de subdivisions n : <strong>{{ d2.n }}</strong></label>
-              <input type="range" v-model.number="d2.n" min="2" max="90" step="1" @input="drawLab" />
-            </div>
-            <div class="ctrl-group">
-              <label>Borne supérieure b : <strong>{{ d2.b.toFixed(2) }}</strong></label>
-              <input type="range" v-model.number="d2.b" min="1.5" max="5.5" step="0.25" @input="drawLab" />
-            </div>
+            <div class="ctrl-group"><label>Façon de mesurer</label><select v-model="d2.method" @change="drawLab"><option value="midpoint">Point milieu</option><option value="trapezoid">Trapèzes</option><option value="left">Depuis la gauche</option><option value="right">Depuis la droite</option></select></div>
+            <div class="ctrl-group"><label>Découpage <strong>{{ d2.n }} morceaux</strong></label><input type="range" v-model.number="d2.n" min="2" max="90" step="1" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Étendue <strong>b = {{ d2.b.toFixed(2) }}</strong></label><input type="range" v-model.number="d2.b" min="1.5" max="5.5" step="0.25" @input="drawLab" /></div>
           </template>
-
           <template v-else-if="activeLab === 'revolution'">
-            <div class="ctrl-group">
-              <label>Profil 3D (Disques & Rondelles)</label>
-              <select v-model="d3.preset" @change="drawLab">
-                <option value="paraboloid">Paraboloïde plein : R(x) = √x</option>
-                <option value="washer">Rondelle creuse : R(x) = √x + 0.6, r(x) = 0.25x</option>
-                <option value="vase">Tuyère Venturi : R(x) = 1.3 + 0.55 cos(1.5x)</option>
-              </select>
-            </div>
-            <div class="ctrl-group">
-              <label>Angle de révolution θ : <strong>{{ d3.theta }}°</strong></label>
-              <input type="range" v-model.number="d3.theta" min="15" max="360" step="5" @input="drawLab" />
-            </div>
-            <div class="ctrl-group">
-              <label>Position de la rondelle x_k : <strong>{{ d3.sliceX.toFixed(2) }}</strong></label>
-              <input type="range" v-model.number="d3.sliceX" min="0.3" max="3.4" step="0.05" @input="drawLab" />
-            </div>
-            <p class="hint">💡 Cliquez et glissez sur la scène pour faire pivoter la caméra 3D.</p>
+            <div class="ctrl-group"><label>Donner une forme</label><select v-model="d3.preset" @change="drawLab"><option value="paraboloid">Paraboloïde</option><option value="washer">Rondelle creuse</option><option value="vase">Vase de Venturi</option></select></div>
+            <div class="ctrl-group"><label>Tourner de <strong>{{ d3.theta }}°</strong></label><input type="range" v-model.number="d3.theta" min="15" max="360" step="5" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Déplacer la tranche <strong>x = {{ d3.sliceX.toFixed(2) }}</strong></label><input type="range" v-model.number="d3.sliceX" min="0.3" max="3.4" step="0.05" @input="drawLab" /></div>
           </template>
-
           <template v-else>
-            <div class="ctrl-group">
-              <label>Fonction analytique f(x)</label>
-              <select v-model="d4.fn" @change="drawLab">
-                <option value="sin">f(x) = sin(x) (R = ∞)</option>
-                <option value="cos">f(x) = cos(x) (R = ∞)</option>
-                <option value="exp">f(x) = e^x (R = ∞)</option>
-                <option value="geom">f(x) = 1 / (1 - x) (R = 1, Série géométrique)</option>
-                <option value="ln">f(x) = ln(1 + x) (R = 1)</option>
-              </select>
-            </div>
-            <div class="ctrl-group">
-              <label>Degré du polynôme de Taylor n : <strong>{{ d4.n }}</strong></label>
-              <input type="range" v-model.number="d4.n" min="0" max="15" step="1" @input="drawLab" />
-            </div>
+            <div class="ctrl-group"><label>Une fonction</label><select v-model="d4.fn" @change="drawLab"><option value="sin">sin(x)</option><option value="cos">cos(x)</option><option value="exp">eˣ</option><option value="geom">1 / (1 − x)</option><option value="ln">ln(1 + x)</option></select></div>
+            <div class="ctrl-group"><label>Ordre d’approximation <strong>n = {{ d4.n }}</strong></label><input type="range" v-model.number="d4.n" min="0" max="15" step="1" @input="drawLab" /></div>
           </template>
-        </div>
-      </div>
-    </main>
+          <div class="control-footnote">Les mathématiques répondent en direct à vos gestes.</div>
+        </aside>
+      </section>
 
-    <!-- VUE 3 : SCÉNARIOS PRÉCONFIGURÉS -->
-    <main v-else class="bento-section">
-      <div class="sec-head">
-        <span class="eyebrow">EXPOSÉS MAGISTRAUX ÉTS</span>
-        <h2>Scénarios Pédagogiques en 1 Clic</h2>
-      </div>
-      <div class="bento-grid">
-        <div v-for="sc in scenarios" :key="sc.id" class="bento-card" @click="runScenario(sc.id)">
-          <div>
-            <span class="mod-badge">{{ sc.tag }}</span>
-            <h3 style="margin-top:12px">{{ sc.title }}</h3>
-            <p>{{ sc.desc }}</p>
-          </div>
-          <div class="bento-link"><span>Charger ce scénario</span><span>→</span></div>
-        </div>
-      </div>
+      <section class="play-prompts"><div class="prompt-label">Essayez un petit défi</div><button v-for="prompt in playPrompts" :key="prompt.id" @click="runScenario(prompt.id)">{{ prompt.text }} <span>↗</span></button></section>
     </main>
 
     <footer class="footer">
@@ -232,40 +97,49 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue';
 
-const activeView = ref('intro');
+const activeView = ref('studio');
+const introVisible = ref(true);
 const activeLab = ref('derivative');
 const projectorMode = ref(false);
 
 const introCanvas = ref(null);
 const introPointer = reactive({ x: 0.72, y: 0.45 });
-const heroWaveCanvas = ref(null);
-const heroMiniCanvas = ref(null);
 const labCanvas = ref(null);
 const hudLines = ref([]);
 
 let animFrame = null;
 let heroTime = 0;
 
-const d1 = reactive({ fn: 'parabola', a: 1.0, h: 1.2 });
+const d1 = reactive({ fn: 'parabola', a: 1.0, h: 1.2, dragging: false });
 const d2 = reactive({ method: 'midpoint', n: 10, b: 4.0 });
 const d3 = reactive({ preset: 'washer', theta: 260, sliceX: 2.0, yaw: 0.72, pitch: 0.35, dragging: false, lx: 0, ly: 0 });
 const d4 = reactive({ fn: 'sin', n: 5 });
 
-const bentoCards = [
-  { id: 'derivative', shortTitle: '01. Dérivée & Tangente', badge: 'LAB 01 • CALCUL DIFFÉRENTIEL', weeks: 'Semaines 1 à 4', title: 'Taux de Variation, Sécante & Linéarisation', desc: "Faites tendre l'incrément Δx (h → 0) pour observer la corde sécante pivoter vers la tangente exacte.", formula: "f'(a) = lim_{h → 0} [ f(a + h) - f(a) ] / h" },
-  { id: 'riemann', shortTitle: '02. Sommes de Riemann', badge: 'LAB 02 • CALCUL INTÉGRAL', weeks: 'Semaines 5 à 8', title: 'Sommes de Riemann & Théorème Fondamental', desc: 'Comparez la vitesse de convergence entre les sommes à gauche, à droite, au point milieu et par trapèzes.', formula: '∫_a^b f(x) dx = lim_{n → ∞} Σ f(x_i*) · Δx' },
-  { id: 'revolution', shortTitle: '03. Solides 3D', badge: 'LAB 03 • GÉOMÉTRIE 3D', weeks: 'Semaines 9 à 11', title: 'Solides de Révolution 3D (Disques & Rondelles)', desc: 'Moteur 3D interactif avec rayon externe R(x), interne r(x) et découpe de rondelle élémentaire dV.', formula: 'V = π ∫_a^b ( [R(x)]² - [r(x)]² ) dx' },
-  { id: 'taylor', shortTitle: '04. Séries de Taylor', badge: 'LAB 04 • SUITES ET SÉRIES', weeks: 'Semaines 12 à 13', title: 'Séries de Taylor & Intervalle de Convergence', desc: "Superposez les polynômes de Taylor P_n(x) jusqu'à l'ordre 15 et visualisez le rayon de convergence R.", formula: 'P_n(x) = Σ_{k=0}^n [ f^(k)(0) / k! ] · x^k' }
+const playgroundModes = [
+  { id: 'derivative', symbol: '⌁', label: 'Tangente' },
+  { id: 'riemann', symbol: '▥', label: 'Aire' },
+  { id: 'revolution', symbol: '◉', label: 'Rotation' },
+  { id: 'taylor', symbol: '∿', label: 'Approximation' }
 ];
+const playPrompts = [
+  { id: 1, text: 'Trouver le point plat' },
+  { id: 2, text: 'Découper sous la courbe' },
+  { id: 3, text: 'Ouvrir une forme en deux' },
+  { id: 4, text: 'Voir où la série décroche' }
+];
+const currentPlay = computed(() => ({
+  derivative: { heading: 'Une tangente en mouvement', caption: 'Le point glisse. La sécante se redresse.', controlTitle: 'Trouver la pente' },
+  riemann: { heading: 'Une aire qui se construit', caption: 'Ajoutez des morceaux. Regardez l’écart diminuer.', controlTitle: 'Construire une aire' },
+  revolution: { heading: 'Une courbe prend du volume', caption: 'Faites tourner le profil et découpez une tranche.', controlTitle: 'Donner du volume' },
+  taylor: { heading: 'Une fonction, plusieurs approches', caption: 'Les polynômes s’approchent… jusqu’à leur limite.', controlTitle: 'Approcher la courbe' }
+}[activeLab.value]));
 
-const scenarios = [
-  { id: 1, tag: 'SCÉNARIO 01 • DÉRIVÉE', title: "Tangente horizontale et point d'inflexion", desc: 'Polynôme cubique 0.25x³ - 0.75x + 0.5 au voisinage de son extremum local a = 1.0.' },
-  { id: 2, tag: 'SCÉNARIO 02 • INTÉGRATION', title: 'Précision quadratique du Point Milieu', desc: 'Intégration avec seulement n = 6 subdivisions illustrant la compensation des erreurs.' },
-  { id: 3, tag: 'SCÉNARIO 03 • SOLIDES 3D', title: 'Coupe à 240° d’une Rondelle Creuse', desc: 'Solide 3D ouvert à θ = 240° montrant le rayon externe R(x) et le trou conique interne r(x).' },
-  { id: 4, tag: 'SCÉNARIO 04 • TAYLOR', title: 'Mur de divergence de la série géométrique', desc: 'Série 1/(1-x) à l’ordre n = 11 montrant la frontière stricte de convergence en x = ±1.' }
-];
+function enterPlayground() {
+  introVisible.value = false;
+  nextTick(() => drawLab());
+}
 
 function switchView(v) {
   activeView.value = v;
@@ -278,14 +152,16 @@ function moveIntroArt(event) {
   introPointer.y = (event.clientY - rect.top) / rect.height;
 }
 
-function openLab(id) {
+function selectLab(id) {
   activeLab.value = id;
-  activeView.value = 'studio';
   nextTick(() => drawLab());
 }
 
-function selectLab(id) {
-  activeLab.value = id;
+function resetPlayground() {
+  if (activeLab.value === 'derivative') Object.assign(d1, { fn: 'parabola', a: 1, h: 1.2 });
+  if (activeLab.value === 'riemann') Object.assign(d2, { method: 'midpoint', n: 10, b: 4 });
+  if (activeLab.value === 'revolution') Object.assign(d3, { preset: 'washer', theta: 260, sliceX: 2, yaw: 0.72, pitch: 0.35 });
+  if (activeLab.value === 'taylor') Object.assign(d4, { fn: 'sin', n: 5 });
   nextTick(() => drawLab());
 }
 
@@ -298,7 +174,7 @@ function runScenario(id) {
 
 function animateHero() {
   const art = introCanvas.value;
-  if (activeView.value === 'intro' && art) {
+  if (introVisible.value && art) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = art.clientWidth, h = art.clientHeight;
     if (art.width !== Math.round(w * dpr) || art.height !== Math.round(h * dpr)) { art.width = Math.round(w * dpr); art.height = Math.round(h * dpr); }
@@ -321,50 +197,6 @@ function animateHero() {
     ctx.globalAlpha = 1;
     const glow = ctx.createRadialGradient(ox, oy, 0, ox, oy, scale * 0.9); glow.addColorStop(0, 'rgba(173,190,255,0.17)'); glow.addColorStop(1, 'rgba(173,190,255,0)'); ctx.fillStyle = glow; ctx.fillRect(ox-scale, oy-scale, scale*2, scale*2);
     for (let i=0;i<8;i++){ const t=heroTime*0.22+i*Math.PI/4; const r=scale*(0.62+0.055*Math.sin(heroTime+i)); ctx.beginPath(); ctx.arc(ox+Math.cos(t)*r,oy+Math.sin(t)*r*0.76,2.2,0,Math.PI*2); ctx.fillStyle=colors[i%5];ctx.globalAlpha=.8;ctx.fill(); } ctx.globalAlpha=1;
-  }
-  if (activeView.value === 'landing') {
-    const bg = heroWaveCanvas.value;
-    if (bg) {
-      if (bg.width !== bg.clientWidth) { bg.width = bg.clientWidth; bg.height = bg.clientHeight; }
-      const ctx = bg.getContext('2d');
-      ctx.clearRect(0, 0, bg.width, bg.height);
-      for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.strokeStyle = i % 2 === 0 ? 'rgba(56, 189, 248, 0.16)' : 'rgba(239, 62, 66, 0.14)';
-        ctx.lineWidth = 1.5;
-        for (let x = 0; x <= bg.width; x += 12) {
-          const y = bg.height * 0.5 + Math.sin(x * 0.004 + heroTime + i * 0.7) * (42 + i * 14);
-          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-    }
-    const mini = heroMiniCanvas.value;
-    if (mini) {
-      if (mini.width !== mini.clientWidth) { mini.width = mini.clientWidth; mini.height = mini.clientHeight; }
-      const ctx = mini.getContext('2d');
-      const w = mini.width, h = mini.height;
-      ctx.fillStyle = '#f1f2f8';
-      ctx.fillRect(0, 0, w, h);
-      const midY = h / 2, sx = w / 10, sy = h / 4.2;
-      const nR = 14, rw = w / nR;
-      for (let i = 0; i < nR; i++) {
-        const mx = ((i + 0.5) * rw - w / 2) / sx;
-        const val = Math.sin(mx - heroTime * 1.2) * Math.cos(0.4 * mx);
-        const ry = midY - val * sy;
-        ctx.fillStyle = 'rgba(116, 131, 203, 0.18)';
-        ctx.fillRect(i * rw + 2, Math.min(midY, ry), rw - 4, Math.abs(midY - ry));
-      }
-      ctx.strokeStyle = '#7483cb';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      for (let px = 0; px <= w; px += 3) {
-        const mx = (px - w / 2) / sx;
-        const py = midY - Math.sin(mx - heroTime * 1.2) * Math.cos(0.4 * mx) * sy;
-        if (px === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.stroke();
-    }
   }
   heroTime += 0.022;
   animFrame = requestAnimationFrame(animateHero);
@@ -606,17 +438,29 @@ function animateHToZero() {
 }
 
 function onCanvasDown(e) {
+  e.currentTarget.setPointerCapture(e.pointerId);
+  if (activeLab.value === 'derivative') d1.dragging = true;
+  if (activeLab.value === 'riemann') d2.dragging = true;
   if (activeLab.value === 'revolution') { d3.dragging = true; d3.lx = e.clientX; d3.ly = e.clientY; }
+  onCanvasMove(e);
 }
 function onCanvasMove(e) {
-  if (activeLab.value === 'revolution' && d3.dragging) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const position = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  if (activeLab.value === 'derivative' && d1.dragging) {
+    d1.a = Math.max(-3, Math.min(3, (position - 0.5) * 9.5));
+    drawLab();
+  } else if (activeLab.value === 'riemann' && d2.dragging) {
+    d2.n = Math.round(2 + position * 88);
+    drawLab();
+  } else if (activeLab.value === 'revolution' && d3.dragging) {
     d3.yaw += (e.clientX - d3.lx) * 0.008;
     d3.pitch = Math.max(-1.2, Math.min(1.2, d3.pitch - (e.clientY - d3.ly) * 0.008));
     d3.lx = e.clientX; d3.ly = e.clientY;
     drawLab();
   }
 }
-function onCanvasUp() { d3.dragging = false; }
+function onCanvasUp() { d1.dragging = false; d2.dragging = false; d3.dragging = false; }
 
 function exportPNG() {
   if (!labCanvas.value) return;
@@ -640,7 +484,7 @@ onUnmounted(() => {
 :global(button), :global(select), :global(input) { font: inherit; }
 .app-shell { --ink:#1d1d1f; --muted:#6e6e73; --line:rgba(29,29,31,.1); --blue:#1677ff; min-height:100vh; display:flex; flex-direction:column; background:#f5f5f7; color:var(--ink); }
 .app-shell.projector { font-size:112%; }
-.intro-page { min-height:100svh; position:relative; overflow:hidden; isolation:isolate; background:radial-gradient(ellipse at 74% 46%,#f0f1fb 0%,#f6f6f8 42%,#f5f5f7 76%); }
+.intro-page { min-height:100svh; position:fixed;inset:0;z-index:100;overflow:hidden;isolation:isolate; background:radial-gradient(ellipse at 74% 46%,#f0f1fb 0%,#f6f6f8 42%,#f5f5f7 76%); }
 .intro-art { position:absolute; inset:0; width:100%; height:100%; z-index:0; touch-action:pan-y; }
 .intro-topline { position:absolute;z-index:1; left:clamp(24px,5vw,76px); right:clamp(24px,5vw,76px); top:34px; display:flex; align-items:center; gap:12px; color:#56565c; font-size:13px; letter-spacing:.02em; }
 .intro-mark { width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#1d1d1f;color:white;font-family:Georgia,serif;font-size:20px; }
@@ -737,4 +581,53 @@ onUnmounted(() => {
 @media(max-width:960px) { .hero-grid{grid-template-columns:1fr;gap:32px}.intro-content{width:65vw}.studio-grid{grid-template-columns:1fr}.stage-canvas{height:460px} }
 @media(max-width:700px) { .navbar{padding:10px 15px}.nav-inner{gap:10px}.nav-tabs{order:3;width:100%;justify-content:center}.nav-btn{padding:8px 10px;font-size:11px}.brand-sub,.badge{display:none}.hero-section{padding:55px 19px 42px}.hero-grid{gap:28px}.metrics-row{grid-template-columns:repeat(2,1fr);row-gap:16px}.mini-canvas{height:210px}.bento-section{padding:40px 18px}.bento-grid{grid-template-columns:1fr}.studio-container{padding:20px 15px}.stage-canvas{height:380px}.intro-content{left:28px;top:44%;width:80vw}.intro-content h1{font-size:clamp(52px,13vw,78px)}.intro-content p{font-size:16px;max-width:310px}.intro-topline{top:22px;left:22px;right:22px}.intro-live{font-size:10px}.intro-index{right:17px;font-size:8px}.equation-one{top:20%;right:14%;font-size:16px}.equation-two{bottom:23%;right:9%;font-size:14px}.intro-bottom{left:22px;right:22px;bottom:20px;font-size:9px}.intro-bottom span:first-child{max-width:55%} }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after{scroll-behavior:auto!important;transition:none!important} }
+
+/* Canvas-first playground */
+.header-note { display:flex;align-items:center;gap:9px;color:#77777f;font-size:12px;letter-spacing:.01em; }
+.header-note-dot { width:7px;height:7px;border-radius:50%;background:#8d90d3;box-shadow:0 0 0 4px rgba(141,144,211,.12); }
+.app-shell.intro-active .navbar,.app-shell.intro-active .playground-shell,.app-shell.intro-active .footer { display:none; }
+.playground-shell { flex:1;width:min(1450px,100%);margin:0 auto;padding:32px clamp(16px,3.3vw,48px) 24px; }
+.playground-heading { display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin:2px 2px 18px; }
+.play-eyebrow { display:flex;align-items:center;gap:8px;color:#898991;font-size:10px;font-weight:650;letter-spacing:.14em;margin-bottom:8px; }
+.play-eyebrow span { width:6px;height:6px;background:#8c8ed0;border-radius:50%; }
+.playground-heading h1 { margin:0;font-size:clamp(28px,3.4vw,43px);font-weight:650;letter-spacing:-.06em;line-height:1.06; }
+.playground-heading p { margin:8px 0 0;color:#77777f;font-size:13px; }
+.play-modes { display:flex;align-items:center;gap:5px;background:#eaeaf0;border:1px solid rgba(30,30,38,.035);padding:5px;border-radius:999px;flex-shrink:0; }
+.play-mode { display:inline-flex;align-items:center;gap:7px;border:0;border-radius:999px;padding:9px 12px;background:transparent;color:#777780;font-size:11px;font-weight:550;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s; }
+.play-mode:hover { color:#414149; }
+.play-mode.active { background:#fff;color:#29292f;box-shadow:0 2px 6px rgba(30,30,40,.08); }
+.mode-symbol { color:#8587c8;font-family:Georgia,serif;font-size:15px;line-height:1; }
+.play-stage-wrap { position:relative; }
+.playground-stage { border-radius:22px;min-height:450px; }
+.playground-stage .stage-canvas { height:min(63vh,700px);min-height:450px;background:radial-gradient(ellipse at 48% 48%,#fafaff,#eef0f8 70%,#edeef5);touch-action:pan-y;cursor:grab; }
+.playground-stage .stage-canvas:active { cursor:grabbing; }
+.scene-title { position:absolute;left:22px;top:20px;display:flex;align-items:flex-start;gap:10px;pointer-events:none; }
+.scene-live { margin-top:7px;width:7px;height:7px;border-radius:50%;background:#73b990;box-shadow:0 0 0 4px rgba(115,185,144,.12); }
+.scene-title strong,.scene-title small { display:block; }
+.scene-title strong { font-size:13px;font-weight:620;letter-spacing:-.02em; }
+.scene-title small { margin-top:3px;font-size:11px;color:#85858d; }
+.stage-export { position:absolute;right:18px;top:18px;border:1px solid rgba(40,40,50,.08);border-radius:999px;background:rgba(255,255,255,.8);backdrop-filter:blur(12px);color:#5e5e67;padding:8px 11px;font-size:12px;cursor:pointer; }
+.stage-export span { font-size:10px;padding-left:3px; }
+.playground-stage .hud-box { top:auto;bottom:18px;left:18px;min-width:220px;background:rgba(255,255,255,.76);backdrop-filter:blur(16px);border-color:rgba(40,40,50,.09); }
+.drag-tip { position:absolute;bottom:22px;right:22px;color:#85858d;font-size:10px;pointer-events:none; }
+.playground-controls { position:absolute;right:18px;top:72px;width:276px;padding:17px;background:rgba(255,255,255,.78);backdrop-filter:blur(20px);border-color:rgba(255,255,255,.86);box-shadow:0 10px 34px rgba(50,52,85,.09); }
+.control-heading { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px; }
+.control-heading span { color:#92929a;font-size:9px;font-weight:650;letter-spacing:.13em; }
+.control-heading h2 { font-size:16px;margin:5px 0 0;font-weight:620;letter-spacing:-.035em; }
+.reset-control { width:28px;height:28px;border:1px solid #e5e5eb;background:#fafafd;color:#767680;border-radius:50%;font-size:17px;line-height:1;cursor:pointer; }
+.playground-controls .ctrl-group { margin-bottom:14px; }
+.playground-controls .ctrl-group label { display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#6f6f77; }
+.playground-controls .ctrl-group label strong { color:#383840;font-size:11px;font-weight:600; }
+.playground-controls .ctrl-group select { background:rgba(250,250,253,.8); }
+.playground-controls .btn-primary { width:100%;margin-top:2px;padding:11px 14px;font-size:11px; }
+.playground-controls .btn-primary span { margin-left:8px; }
+.control-footnote { border-top:1px solid rgba(29,29,31,.08);padding-top:11px;margin-top:13px;color:#92929a;font-size:10px;line-height:1.45; }
+.play-prompts { display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:16px 2px 0; }
+.prompt-label { color:#92929a;font-size:10px;letter-spacing:.06em;margin-right:5px; }
+.play-prompts button { display:inline-flex;align-items:center;gap:9px;border:1px solid rgba(29,29,31,.07);background:rgba(255,255,255,.62);border-radius:999px;padding:8px 11px;color:#696970;font-size:10px;cursor:pointer;transition:background .15s,border-color .15s; }
+.play-prompts button:hover { background:white;border-color:#cccee8; }
+.play-prompts button span { color:#8b8dc9; }
+.playground-shell ~ .footer { display:none; }
+@media(max-width:950px) { .playground-heading{align-items:flex-start;flex-direction:column;gap:15px}.playground-controls{width:255px;right:12px}.playground-stage .stage-canvas{height:62vh;min-height:440px} }
+@media(max-width:640px) { .header-note{display:none}.playground-shell{padding:24px 14px 22px}.playground-heading{margin-bottom:14px}.playground-heading h1{font-size:31px}.playground-heading p{font-size:12px;max-width:300px}.play-modes{width:100%;justify-content:space-between;gap:1px;padding:4px}.play-mode{padding:8px 9px;font-size:10px;gap:5px}.mode-symbol{font-size:13px}.playground-stage{min-height:720px;overflow:visible;border-radius:18px}.playground-stage .stage-canvas{height:720px;min-height:720px;border-radius:18px}.playground-controls{top:auto;bottom:14px;left:12px;right:12px;width:auto;padding:15px}.playground-controls .ctrl-group{margin-bottom:10px}.control-heading{margin-bottom:12px}.playground-controls .control-footnote{display:none}.playground-stage .hud-box{top:62px;bottom:auto;left:12px;min-width:185px;padding:9px 10px;font-size:10px}.playground-stage .scene-title{left:13px;top:14px}.scene-title strong{font-size:12px}.scene-title small{font-size:10px}.stage-export{right:12px;top:12px}.drag-tip{right:16px;bottom:443px;max-width:120px;text-align:right}.play-prompts{gap:6px;padding-top:12px}.prompt-label{width:100%;margin:0 0 2px 2px}.play-prompts button{font-size:9px;padding:7px 9px}.intro-content{width:80vw} }
 </style>
