@@ -152,23 +152,22 @@ const currentPlay = computed(() => ({
 }[activeLab.value]));
 
 const liveEquations = computed(() => {
-  const fmt = value => Number(value).toFixed(3);
   if (activeLab.value === 'derivative') {
     const functions = {
       parabola: { f: x => x * x - 2 * x, expression: 'x^2-2x' },
       cubic: { f: x => 0.25 * x ** 3 - 0.75 * x + 0.5, expression: '\\frac14x^3-\\frac34x+\\frac12' },
-      trig: { f: x => 1.8 * Math.sin(x) + 0.4 * Math.cos(2 * x), expression: '1.8\\sin(x)+0.4\\cos(2x)' }
+      trig: { f: x => 1.8 * Math.sin(x) + 0.4 * Math.cos(2 * x), expression: '\\frac95\\sin(x)+\\frac25\\cos(2x)' }
     };
     const curve = functions[d1.fn];
     const mSec = (curve.f(d1.a + d1.h) - curve.f(d1.a)) / d1.h;
     const mTan = d1.fn === 'parabola' ? 2 * d1.a - 2 : d1.fn === 'cubic' ? 0.75 * d1.a ** 2 - 0.75 : 1.8 * Math.cos(d1.a) - 0.8 * Math.sin(2 * d1.a);
     return [
       { label: 'La définition', latex: `f'(a)=\\lim_{h\\to0}\\frac{f(a+h)-f(a)}{h}\\qquad f(x)=${curve.expression}` },
-      { label: 'Vos valeurs maintenant', latex: `m_{\\mathrm{séc}}=${fmt(mSec)}\\quad\\longrightarrow\\quad f'(${fmt(d1.a)})=${fmt(mTan)}\\quad |\\Delta m|=${fmt(Math.abs(mSec - mTan))}` }
+      { label: 'Vos valeurs maintenant', latex: `m_{\\mathrm{séc}}\\approx${fractionLatex(mSec)}\\quad\\longrightarrow\\quad f'(${fractionLatex(d1.a)})\\approx${fractionLatex(mTan)}\\quad |\\Delta m|\\approx${fractionLatex(Math.abs(mSec - mTan))}` }
     ];
   }
   if (activeLab.value === 'riemann') {
-    const fn = x => Math.sin(x) + 1.4;
+    const fn = x => Math.sin(x) + 7 / 5;
     const dx = d2.b / d2.n;
     let sum = 0;
     if (d2.method === 'trapezoid') {
@@ -179,24 +178,23 @@ const liveEquations = computed(() => {
         sum += fn(x) * dx;
       }
     }
-    const exact = -Math.cos(d2.b) + 1 + 1.4 * d2.b;
+    const exact = -Math.cos(d2.b) + 1 + 7 / 5 * d2.b;
     const sample = d2.method === 'trapezoid' ? '\\frac{f(x_i)+f(x_{i+1})}{2}' : `f(${d2.method === 'left' ? 'x_i' : d2.method === 'right' ? 'x_{i+1}' : 'x_{i+\\frac12}'})`;
     return [
-      { label: d2.method === 'trapezoid' ? 'Règle des trapèzes' : 'Somme de Riemann', latex: `\\Delta x=\\frac{b}{n}=${fmt(dx)},\\quad S_n=\\sum_{i=0}^{${d2.n - 1}} ${sample}\\,\\Delta x` },
-      { label: 'Somme et valeur exacte', latex: `S_{${d2.n}}=${fmt(sum)}\\quad\\; I=\\int_0^{${fmt(d2.b)}}(\\sin x+1.4)\\,dx=${fmt(exact)}\\quad\\; |I-S_n|=${fmt(Math.abs(exact - sum))}` }
+      { label: d2.method === 'trapezoid' ? 'Règle des trapèzes' : 'Somme de Riemann', latex: `\\Delta x=\\frac{b}{n}=${fractionLatex(dx)},\\quad S_n=\\sum_{i=0}^{${d2.n - 1}} ${sample}\\,\\Delta x` },
+      { label: 'Somme et valeur exacte', latex: `S_{${d2.n}}\\approx${fractionLatex(sum)}\\quad I=\\int_0^{${fractionLatex(d2.b)}}\\left(\\sin x+\\frac75\\right)dx=1-\\cos(${fractionLatex(d2.b)})+\\frac75(${fractionLatex(d2.b)})\\approx${fractionLatex(exact)}\\quad |I-S_n|\\approx${fractionLatex(Math.abs(exact - sum))}` }
     ];
   }
   if (activeLab.value === 'revolution') {
     const presets = {
       paraboloid: { outer: '\\sqrt{x}', inner: '0', title: 'Disques' },
-      washer: { outer: '\\sqrt{x}+0.6', inner: '0.25x', title: 'Rondelles' },
-      vase: { outer: '1.3+0.55\\cos(1.5x)', inner: '0.35', title: 'Rondelles' }
+      washer: { outer: '\\sqrt{x}+\\frac35', inner: '\\frac14x', title: 'Rondelles' },
+      vase: { outer: '\\frac{13}{10}+\\frac{11}{20}\\cos(\\frac32x)', inner: '\\frac7{20}', title: 'Rondelles' }
     };
     const shape = presets[d3.preset];
-    const volume = 2 * Math.PI * (d3.theta / 360) * d3.sliceX;
     return [
-      { label: `Méthode des ${shape.title.toLowerCase()}`, latex: `V=\\pi\\int_a^b\\!\\left(R(x)^2-r(x)^2\\right)dx,\\quad R(x)=${shape.outer},\\;r(x)=${shape.inner}` },
-      { label: 'La tranche sélectionnée', latex: `x_k=${fmt(d3.sliceX)},\\quad R(x_k)=${fmt(d3.preset === 'paraboloid' ? Math.sqrt(d3.sliceX) : d3.preset === 'washer' ? Math.sqrt(d3.sliceX) + 0.6 : 1.3 + 0.55 * Math.cos(1.5 * d3.sliceX))},\\quad\\theta=${d3.theta}^\\circ` }
+      { label: `Méthode des ${shape.title.toLowerCase()}`, latex: `V_\\theta=\\frac{\\theta}{360^\\circ}\\pi\\int_a^b\\!\\left(R(x)^2-r(x)^2\\right)dx,\\quad R(x)=${shape.outer},\\;r(x)=${shape.inner}` },
+      { label: 'La tranche sélectionnée', latex: `x_k=${fractionLatex(d3.sliceX)},\\quad R(x_k)\\approx${fractionLatex(d3.preset === 'paraboloid' ? Math.sqrt(d3.sliceX) : d3.preset === 'washer' ? Math.sqrt(d3.sliceX) + 0.6 : 1.3 + 0.55 * Math.cos(1.5 * d3.sliceX))},\\quad\\theta=${d3.theta}^\\circ=${fractionLatex(d3.theta / 360)}\\text{ tour}` }
     ];
   }
   const coefficient = k => {
@@ -210,8 +208,8 @@ const liveEquations = computed(() => {
   for (let k = 0; k <= d4.n; k++) {
     const c = coefficient(k);
     if (Math.abs(c) < 1e-12) continue;
-    const magnitude = Math.abs(c);
-    const coefficientText = k > 0 && Math.abs(magnitude - 1) < 1e-12 ? '' : fmt(magnitude);
+    const denominator = d4.fn === 'geom' ? 1 : d4.fn === 'ln' ? k : fact(k);
+    const coefficientText = denominator === 1 ? (k > 0 ? '' : '1') : `\\frac{1}{${denominator}}`;
     const power = k === 0 ? '' : k === 1 ? 'x' : `x^{${k}}`;
     terms.push({ negative: c < 0, value: `${coefficientText}${power}` || '0' });
   }
@@ -296,6 +294,27 @@ function animateHero() {
 }
 
 function fact(n) { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
+function gcd(a, b) { return b ? gcd(b, a % b) : Math.abs(a); }
+function fractionLatex(value, maxDenominator = 1000) {
+  if (!Number.isFinite(value)) return String(value);
+  const sign = value < 0 ? '-' : '';
+  const target = Math.abs(value);
+  let numerator = Math.round(target), denominator = 1, bestError = Math.abs(target - numerator);
+  for (let candidateDenominator = 1; candidateDenominator <= maxDenominator; candidateDenominator++) {
+    const candidateNumerator = Math.round(target * candidateDenominator);
+    const error = Math.abs(target - candidateNumerator / candidateDenominator);
+    if (error < bestError) {
+      numerator = candidateNumerator;
+      denominator = candidateDenominator;
+      bestError = error;
+      if (error < 1e-10) break;
+    }
+  }
+  const divisor = gcd(numerator, denominator) || 1;
+  numerator /= divisor;
+  denominator /= divisor;
+  return denominator === 1 ? `${sign}${numerator}` : `${sign}\\frac{${numerator}}{${denominator}}`;
+}
 
 function drawLab() {
   const c = labCanvas.value;
