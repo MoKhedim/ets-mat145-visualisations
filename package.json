@@ -2,7 +2,7 @@
     "name": "ets-mat145-visualisations",
     "version": "2.0.0",
     "private": true,
-    "description": "Plateforme interactive de visualisation mathématique pour le cours MAT145 (Calcul différentiel et intégral) à l'éTS Montréal",
+    "description": "Playground interactif pour explorer les mathématiques des cours de l'ÉTS Montréal",
     "type": "module",
     "scripts": {
           "dev": "vite",

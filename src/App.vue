@@ -2,31 +2,36 @@
   <div :class="['app-shell', { projector: projectorMode, 'intro-active': introVisible }]">
     <main v-if="introVisible" class="intro-page">
       <canvas ref="introCanvas" class="intro-art" @pointermove="moveIntroArt" @pointerdown="moveIntroArt"></canvas>
-      <div class="intro-topline"><span class="intro-mark">∫</span><span>ÉTS Montréal <i>·</i> MAT145</span><span class="intro-live"><b></b> Une expérience interactive</span></div>
+      <div class="intro-topline"><span class="intro-mark">∫</span><span>ÉTS Montréal <i>·</i> Mathématiques</span><span class="intro-live"><b></b> Playground</span></div>
       <div class="intro-content">
-        <div class="intro-kicker">CALCUL DIFFÉRENTIEL ET INTÉGRAL</div>
-        <h1>Les mathématiques<br/>prennent <em>forme.</em></h1>
-        <p>Explorez les idées derrière le calcul, une courbe à la fois.</p>
-        <button class="intro-enter" @click="enterPlayground">Entrer dans le playground <span>↗</span></button>
-        <div class="intro-hint"><span class="hint-line"></span>Déplacez le pointeur pour explorer</div>
+        <div class="intro-kicker">MATHÉMATIQUES · ÉTS</div>
+        <h1>Les maths,<br/><em>en mouvement.</em></h1>
+        <div class="landing-course-label">Choisissez un cours</div>
+        <div class="landing-courses" aria-label="Choisir un cours de mathématiques">
+          <button v-for="course in courses" :key="course.id" class="landing-course" @click="enterCourse(course.id)">
+            <span class="course-symbol">{{ course.symbol }}</span>
+            <span class="course-copy"><strong>{{ course.id }}</strong><small>{{ course.title }}</small></span>
+            <span class="course-arrow">↗</span>
+          </button>
+        </div>
       </div>
-      <div class="intro-equation equation-one">∫<sub>a</sub><sup>b</sup> f(x) dx</div>
-      <div class="intro-equation equation-two">lim<sub>h→0</sub> &nbsp; Δy / Δx</div>
-      <div class="intro-index"><span>01</span><span class="index-rule"></span><span>04</span><span>CONCEPTS À EXPLORER</span></div>
-      <div class="intro-bottom"><span>Un espace pour voir, toucher et comprendre.</span><span>MAT145 STUDIO <b>©</b> 2026</span></div>
+      <div class="landing-equation equation-one">∫ f(x) dx</div>
+      <div class="landing-equation equation-two">A x = λx</div>
+      <div class="intro-bottom"><span>ÉTS <b>·</b> MATH PLAYGROUND</span><span>Explorer les idées</span></div>
     </main>
     <header class="navbar">
       <div class="nav-inner">
-        <div class="brand" @click="switchView('studio')">
+        <button class="brand" @click="goHome" aria-label="Retour aux cours">
           <div class="ets-logo">ÉTS</div>
           <div>
-            <div class="brand-title">MAT145 Studio <span class="badge">ÉTS Montréal</span></div>
-            <div class="brand-sub">Calcul différentiel et intégral • Playground interactif</div>
+            <div class="brand-title">{{ activeCourse.id }} <span class="badge">ÉTS Montréal</span></div>
+            <div class="brand-sub">{{ activeCourse.title }} • Playground interactif</div>
           </div>
-        </div>
+        </button>
 
-        <div class="header-note"><span class="header-note-dot"></span> Un espace pour explorer le calcul</div>
+        <div class="header-note"><span class="header-note-dot"></span> Explorer les maths en direct</div>
 
+        <button class="btn-outline nav-home" @click="goHome"><span>⌂</span> Tous les cours</button>
         <button :class="['btn-outline', { active: projectorMode }]" @click="projectorMode = !projectorMode">
           Mode présentation
         </button>
@@ -36,12 +41,12 @@
     <main class="playground-shell">
       <section class="playground-heading">
         <div>
-          <div class="play-eyebrow"><span></span> PLAYGROUND MAT145</div>
-          <h1>Jouez avec les idées.</h1>
-          <p>Attrapez une courbe. Changez un paramètre. Voyez ce qui se passe.</p>
+          <div class="play-eyebrow"><span></span> PLAYGROUND {{ activeCourse.id }}</div>
+          <h1>{{ activeCourse.group === 'calculus' ? 'Jouez avec les idées.' : currentPlay.heading }}</h1>
+          <p>{{ activeCourse.group === 'calculus' ? 'Attrapez une courbe. Changez un paramètre. Voyez ce qui se passe.' : activeCourse.title }}</p>
         </div>
         <div class="play-modes" aria-label="Choisir une idée mathématique">
-          <button v-for="mode in playgroundModes" :key="mode.id" :class="['play-mode', { active: activeLab === mode.id }]" @click="selectLab(mode.id)">
+          <button v-for="mode in visiblePlayModes" :key="mode.id" :class="['play-mode', { active: activeLab === mode.id }]" @click="selectLab(mode.id)">
             <span class="mode-symbol">{{ mode.symbol }}</span><span>{{ mode.label }}</span>
           </button>
         </div>
@@ -58,30 +63,74 @@
               <strong :style="{ color: line.color }">{{ line.value }}</strong>
             </div>
           </div>
-          <div class="drag-tip">{{ activeLab === 'revolution' ? 'Glissez pour faire tourner' : activeLab === 'derivative' ? 'Glissez le point sur la courbe' : activeLab === 'riemann' ? 'Glissez pour ajouter des rectangles' : 'Ajustez l’ordre pour explorer' }}</div>
+          <div class="drag-tip">{{ dragTip }}</div>
         </div>
 
         <aside class="controls-card playground-controls">
           <div class="control-heading"><div><span>À VOUS DE JOUER</span><h2>{{ currentPlay.controlTitle }}</h2></div><button class="reset-control" @click="resetPlayground" aria-label="Réinitialiser les réglages">↺</button></div>
-          <template v-if="activeLab === 'derivative'">
-            <div class="ctrl-group"><label>Une courbe</label><select v-model="d1.fn" @change="drawLab"><option value="parabola">Parabole douce</option><option value="cubic">Courbe cubique</option><option value="trig">Vague composée</option></select></div>
-            <div class="ctrl-group"><label>Point de contact <strong>a = {{ d1.a.toFixed(2) }}</strong></label><input type="range" v-model.number="d1.a" min="-3" max="3" step="0.02" @input="drawLab" /></div>
-            <div class="ctrl-group"><label>Écart <strong>h = {{ d1.h.toFixed(3) }}</strong></label><input type="range" v-model.number="d1.h" min="0.005" max="2.4" step="0.005" @input="drawLab" /></div>
-            <button class="btn-primary full" @click="animateHToZero">Rapprocher les points <span>→</span></button>
+          <template v-if="activeCourse.group === 'calculus'">
+            <template v-if="activeLab === 'derivative'">
+              <div class="ctrl-group"><label>Une courbe</label><select v-model="d1.fn" @change="drawLab"><option value="parabola">Parabole douce</option><option value="cubic">Courbe cubique</option><option value="trig">Vague composée</option></select></div>
+              <div class="ctrl-group"><label>Point de contact <strong>a = {{ d1.a.toFixed(2) }}</strong></label><input type="range" v-model.number="d1.a" min="-3" max="3" step="0.02" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Écart <strong>h = {{ d1.h.toFixed(3) }}</strong></label><input type="range" v-model.number="d1.h" min="0.005" max="2.4" step="0.005" @input="drawLab" /></div>
+              <button class="btn-primary full" @click="animateHToZero">Rapprocher les points <span>→</span></button>
+            </template>
+            <template v-else-if="activeLab === 'riemann'">
+              <div class="ctrl-group"><label>Façon de mesurer</label><select v-model="d2.method" @change="drawLab"><option value="midpoint">Point milieu</option><option value="trapezoid">Trapèzes</option><option value="left">Depuis la gauche</option><option value="right">Depuis la droite</option></select></div>
+              <div class="ctrl-group"><label>Découpage <strong>{{ d2.n }} morceaux</strong></label><input type="range" v-model.number="d2.n" min="2" max="90" step="1" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Étendue <strong>b = {{ d2.b.toFixed(2) }}</strong></label><input type="range" v-model.number="d2.b" min="1.5" max="5.5" step="0.25" @input="drawLab" /></div>
+            </template>
+            <template v-else-if="activeLab === 'revolution'">
+              <div class="ctrl-group"><label>Donner une forme</label><select v-model="d3.preset" @change="drawLab"><option value="paraboloid">Paraboloïde</option><option value="washer">Rondelle creuse</option><option value="vase">Vase de Venturi</option></select></div>
+              <div class="ctrl-group"><label>Tourner de <strong>{{ d3.theta }}°</strong></label><input type="range" v-model.number="d3.theta" min="15" max="360" step="5" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Déplacer la tranche <strong>x = {{ d3.sliceX.toFixed(2) }}</strong></label><input type="range" v-model.number="d3.sliceX" min="0.3" max="3.4" step="0.05" @input="drawLab" /></div>
+            </template>
+            <template v-else>
+              <div class="ctrl-group"><label>Une fonction</label><select v-model="d4.fn" @change="drawLab"><option value="sin">sin(x)</option><option value="cos">cos(x)</option><option value="exp">eˣ</option><option value="geom">1 / (1 − x)</option><option value="ln">ln(1 + x)</option></select></div>
+              <div class="ctrl-group"><label>Ordre d’approximation <strong>n = {{ d4.n }}</strong></label><input type="range" v-model.number="d4.n" min="0" max="15" step="1" @input="drawLab" /></div>
+            </template>
           </template>
-          <template v-else-if="activeLab === 'riemann'">
-            <div class="ctrl-group"><label>Façon de mesurer</label><select v-model="d2.method" @change="drawLab"><option value="midpoint">Point milieu</option><option value="trapezoid">Trapèzes</option><option value="left">Depuis la gauche</option><option value="right">Depuis la droite</option></select></div>
-            <div class="ctrl-group"><label>Découpage <strong>{{ d2.n }} morceaux</strong></label><input type="range" v-model.number="d2.n" min="2" max="90" step="1" @input="drawLab" /></div>
-            <div class="ctrl-group"><label>Étendue <strong>b = {{ d2.b.toFixed(2) }}</strong></label><input type="range" v-model.number="d2.b" min="1.5" max="5.5" step="0.25" @input="drawLab" /></div>
+          <template v-else-if="activeCourse.group === 'linear'">
+            <template v-if="activeLab === 'vectors'">
+              <div class="ctrl-group"><label>Vecteur u · composante x <strong>{{ linear.u.toFixed(1) }}</strong></label><input v-model.number="linear.u" type="range" min="-3" max="3" step="0.1" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Vecteur u · composante y <strong>{{ linear.v.toFixed(1) }}</strong></label><input v-model.number="linear.v" type="range" min="-3" max="3" step="0.1" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Vecteur w · composante x <strong>{{ linear.x.toFixed(1) }}</strong></label><input v-model.number="linear.x" type="range" min="-3" max="3" step="0.1" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Vecteur w · composante y <strong>{{ linear.y.toFixed(1) }}</strong></label><input v-model.number="linear.y" type="range" min="-3" max="3" step="0.1" @input="drawLab" /></div>
+            </template>
+            <template v-else>
+              <div class="ctrl-group"><label>Étirement horizontal <strong>{{ linear.scaleX.toFixed(1) }}</strong></label><input v-model.number="linear.scaleX" type="range" min="0.3" max="2.5" step="0.1" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Étirement vertical <strong>{{ linear.scaleY.toFixed(1) }}</strong></label><input v-model.number="linear.scaleY" type="range" min="0.3" max="2.5" step="0.1" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Cisaillement <strong>{{ linear.shear.toFixed(1) }}</strong></label><input v-model.number="linear.shear" type="range" min="-1.5" max="1.5" step="0.1" @input="drawLab" /></div>
+            </template>
           </template>
-          <template v-else-if="activeLab === 'revolution'">
-            <div class="ctrl-group"><label>Donner une forme</label><select v-model="d3.preset" @change="drawLab"><option value="paraboloid">Paraboloïde</option><option value="washer">Rondelle creuse</option><option value="vase">Vase de Venturi</option></select></div>
-            <div class="ctrl-group"><label>Tourner de <strong>{{ d3.theta }}°</strong></label><input type="range" v-model.number="d3.theta" min="15" max="360" step="5" @input="drawLab" /></div>
-            <div class="ctrl-group"><label>Déplacer la tranche <strong>x = {{ d3.sliceX.toFixed(2) }}</strong></label><input type="range" v-model.number="d3.sliceX" min="0.3" max="3.4" step="0.05" @input="drawLab" /></div>
+          <template v-else-if="activeCourse.group === 'foundation'">
+            <div class="ctrl-group"><label>Coefficient a <strong>{{ foundation.a }}</strong></label><input v-model.number="foundation.a" type="range" min="1" max="6" step="1" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Terme b <strong>{{ foundation.b }}</strong></label><input v-model.number="foundation.b" type="range" min="-8" max="8" step="1" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Résultat c <strong>{{ foundation.c }}</strong></label><input v-model.number="foundation.c" type="range" min="-8" max="16" step="1" @input="drawLab" /></div>
+          </template>
+          <template v-else-if="activeCourse.group === 'discrete'">
+            <template v-if="activeLab === 'logic'">
+              <div class="ctrl-group"><label>Opération</label><select v-model="discrete.operation" @change="drawLab"><option value="and">ET · ∧</option><option value="or">OU · ∨</option><option value="xor">OU exclusif · ⊕</option><option value="implies">Implique · ⇒</option></select></div>
+              <div class="ctrl-group"><label>Proposition p <strong>{{ discrete.p ? 'vrai' : 'faux' }}</strong></label><input v-model="discrete.p" type="checkbox" @change="drawLab" /></div>
+              <div class="ctrl-group"><label>Proposition q <strong>{{ discrete.q ? 'vrai' : 'faux' }}</strong></label><input v-model="discrete.q" type="checkbox" @change="drawLab" /></div>
+            </template>
+            <template v-else>
+              <div class="ctrl-group"><label>Sommets <strong>{{ discrete.vertices }}</strong></label><input v-model.number="discrete.vertices" type="range" min="3" max="9" step="1" @input="drawLab" /></div>
+              <div class="ctrl-group"><label>Relier les sommets</label><select v-model="discrete.graph" @change="drawLab"><option value="cycle">Cycle</option><option value="complete">Graphe complet</option><option value="path">Chemin</option></select></div>
+            </template>
+          </template>
+          <template v-else-if="activeCourse.group === 'ode'">
+            <div class="ctrl-group"><label>Valeur initiale y₀ <strong>{{ ode.y0.toFixed(1) }}</strong></label><input v-model.number="ode.y0" type="range" min="0.5" max="2.5" step="0.1" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Pas h <strong>{{ ode.h.toFixed(2) }}</strong></label><input v-model.number="ode.h" type="range" min="0.05" max="0.3" step="0.01" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Pente λ <strong>{{ ode.rate.toFixed(1) }}</strong></label><input v-model.number="ode.rate" type="range" min="-1" max="1.5" step="0.1" @input="drawLab" /></div>
+          </template>
+          <template v-else-if="activeCourse.group === 'probability'">
+            <div class="ctrl-group"><label>Essais n <strong>{{ probability.n }}</strong></label><input v-model.number="probability.n" type="range" min="2" max="24" step="1" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Probabilité p <strong>{{ probability.p.toFixed(2) }}</strong></label><input v-model.number="probability.p" type="range" min="0.05" max="0.95" step="0.01" @input="drawLab" /></div>
           </template>
           <template v-else>
-            <div class="ctrl-group"><label>Une fonction</label><select v-model="d4.fn" @change="drawLab"><option value="sin">sin(x)</option><option value="cos">cos(x)</option><option value="exp">eˣ</option><option value="geom">1 / (1 − x)</option><option value="ln">ln(1 + x)</option></select></div>
-            <div class="ctrl-group"><label>Ordre d’approximation <strong>n = {{ d4.n }}</strong></label><input type="range" v-model.number="d4.n" min="0" max="15" step="1" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Position x <strong>{{ multivariable.x.toFixed(1) }}</strong></label><input v-model.number="multivariable.x" type="range" min="-2.5" max="2.5" step="0.1" @input="drawLab" /></div>
+            <div class="ctrl-group"><label>Position y <strong>{{ multivariable.y.toFixed(1) }}</strong></label><input v-model.number="multivariable.y" type="range" min="-2.5" max="2.5" step="0.1" @input="drawLab" /></div>
           </template>
           <div class="control-footnote">Les mathématiques répondent en direct à vos gestes.</div>
         </aside>
@@ -100,11 +149,11 @@
         </div>
       </section>
 
-      <section class="play-prompts"><div class="prompt-label">Essayez un petit défi</div><button v-for="prompt in playPrompts" :key="prompt.id" @click="runScenario(prompt.id)">{{ prompt.text }} <span>↗</span></button></section>
+      <section v-if="activeCourse.group === 'calculus'" class="play-prompts"><div class="prompt-label">Essayez un petit défi</div><button v-for="prompt in playPrompts" :key="prompt.id" @click="runScenario(prompt.id)">{{ prompt.text }} <span>↗</span></button></section>
     </main>
 
     <footer class="footer">
-      MAT145 — Calcul différentiel et intégral • École de technologie supérieure (ÉTS Montréal)
+      {{ activeCourse.id }} — {{ activeCourse.title }} • École de technologie supérieure (ÉTS Montréal)
     </footer>
   </div>
 </template>
@@ -117,6 +166,7 @@ import 'katex/dist/katex.min.css';
 const activeView = ref('studio');
 const introVisible = ref(true);
 const activeLab = ref('derivative');
+const activeCourseId = ref('MAT145');
 const projectorMode = ref(false);
 
 const introCanvas = ref(null);
@@ -131,6 +181,21 @@ const d1 = reactive({ fn: 'parabola', a: 1.0, h: 1.2, dragging: false });
 const d2 = reactive({ method: 'midpoint', n: 10, b: 4.0 });
 const d3 = reactive({ preset: 'washer', theta: 260, sliceX: 2.0, yaw: 0.72, pitch: 0.35, dragging: false, lx: 0, ly: 0 });
 const d4 = reactive({ fn: 'sin', n: 5 });
+const linear = reactive({ u: 2, v: 1, x: -1, y: 1.5, scaleX: 1.5, scaleY: 0.8, shear: 0.5 });
+const discrete = reactive({ p: true, q: false, operation: 'and', vertices: 6, graph: 'cycle' });
+const ode = reactive({ y0: 1, h: 0.1, rate: 0.7 });
+const probability = reactive({ n: 12, p: 0.4 });
+const multivariable = reactive({ x: 1.2, y: 0.8 });
+const foundation = reactive({ a: 2, b: 3, c: 9 });
+
+const courses = [
+  { id: 'MAT145', title: 'Calcul différentiel et intégral', group: 'calculus', symbol: '∫' },
+  { id: 'MAT165', title: 'Algèbre linéaire et analyse vectorielle', group: 'linear', symbol: '↗' },
+  { id: 'MAT265', title: 'Équations différentielles', group: 'ode', symbol: 'dy' },
+  { id: 'MAT350', title: 'Probabilités et statistiques', group: 'probability', symbol: 'σ' },
+  { id: 'MAT472', title: 'Algèbre linéaire et géométrie de l’espace', group: 'multivariable', symbol: '∇' }
+];
+const activeCourse = computed(() => courses.find(course => course.id === activeCourseId.value) || courses[0]);
 
 const playgroundModes = [
   { id: 'derivative', symbol: '⌁', label: 'Tangente' },
@@ -138,20 +203,105 @@ const playgroundModes = [
   { id: 'revolution', symbol: '◉', label: 'Rotation' },
   { id: 'taylor', symbol: '∿', label: 'Approximation' }
 ];
+const modesByGroup = {
+  foundation: [{ id: 'equations', symbol: 'x', label: 'Équations' }],
+  linear: [{ id: 'vectors', symbol: '↗', label: 'Vecteurs' }, { id: 'matrix', symbol: '▦', label: 'Transformations' }],
+  discrete: [{ id: 'logic', symbol: '∧', label: 'Logique' }, { id: 'graphs', symbol: '⌘', label: 'Graphes' }],
+  ode: [{ id: 'euler', symbol: '∿', label: 'Méthode d’Euler' }, { id: 'slope', symbol: '⋮', label: 'Champ de pentes' }],
+  probability: [{ id: 'binomial', symbol: '▥', label: 'Loi binomiale' }],
+  multivariable: [{ id: 'contours', symbol: '◎', label: 'Courbes de niveau' }, { id: 'gradient', symbol: '∇', label: 'Gradient' }]
+};
+const visiblePlayModes = computed(() => activeCourse.value.group === 'calculus' ? playgroundModes : modesByGroup[activeCourse.value.group]);
 const playPrompts = [
   { id: 1, text: 'Trouver le point plat' },
   { id: 2, text: 'Découper sous la courbe' },
   { id: 3, text: 'Ouvrir une forme en deux' },
   { id: 4, text: 'Voir où la série décroche' }
 ];
-const currentPlay = computed(() => ({
+const currentPlay = computed(() => {
+  if (activeCourse.value.group !== 'calculus') {
+    const scenes = {
+      vectors: { heading: 'Les vecteurs se composent', caption: 'Déplacez les vecteurs et observez leur somme.', controlTitle: 'Composer des vecteurs', mathTitle: 'La somme vectorielle' },
+      equations: { heading: 'Une équation s’équilibre', caption: 'Ajustez les termes et trouvez la valeur de x.', controlTitle: 'Résoudre une équation', mathTitle: 'Équation du premier degré' },
+      matrix: { heading: 'L’espace se transforme', caption: 'Étirez et cisaillez le plan.', controlTitle: 'Transformer le plan', mathTitle: 'Une transformation linéaire' },
+      logic: { heading: 'Une proposition change tout', caption: 'Basculez p et q pour explorer la logique.', controlTitle: 'Explorer la logique', mathTitle: 'La table de vérité' },
+      graphs: { heading: 'Un graphe prend forme', caption: 'Choisissez une structure et suivez ses arêtes.', controlTitle: 'Construire un graphe', mathTitle: 'Sommets, arêtes et chemins' },
+      euler: { heading: 'Une solution pas à pas', caption: 'Comparez l’approximation d’Euler à la solution exacte.', controlTitle: 'Ajuster la méthode', mathTitle: 'La méthode d’Euler' },
+      slope: { heading: 'Un champ indique la direction', caption: 'Suivez les tangentes pour voir les solutions.', controlTitle: 'Explorer le champ', mathTitle: 'Équations différentielles' },
+      binomial: { heading: 'Le hasard dessine une forme', caption: 'Modifiez le nombre d’essais et leur probabilité.', controlTitle: 'Ajuster la distribution', mathTitle: 'La loi binomiale' },
+      contours: { heading: 'Une surface vue d’en haut', caption: 'Les niveaux relient les points de même hauteur.', controlTitle: 'Explorer la surface', mathTitle: 'Les courbes de niveau' },
+      gradient: { heading: 'La pente la plus raide', caption: 'Déplacez le point et suivez le gradient.', controlTitle: 'Déplacer le point', mathTitle: 'Le gradient' }
+    };
+    return scenes[activeLab.value] || scenes.vectors;
+  }
+  return ({
   derivative: { heading: 'Une tangente en mouvement', caption: 'Le point glisse. La sécante se redresse.', controlTitle: 'Trouver la pente', mathTitle: 'De la sécante à la dérivée' },
   riemann: { heading: 'Une aire qui se construit', caption: 'Ajoutez des morceaux. Regardez l’écart diminuer.', controlTitle: 'Construire une aire', mathTitle: 'La somme qui approche une intégrale' },
   revolution: { heading: 'Une courbe prend du volume', caption: 'Faites tourner le profil et découpez une tranche.', controlTitle: 'Donner du volume', mathTitle: 'Des tranches pour construire le volume' },
   taylor: { heading: 'Une fonction, plusieurs approches', caption: 'Les polynômes s’approchent… jusqu’à leur limite.', controlTitle: 'Approcher la courbe', mathTitle: 'Une fonction approchée par sa série' }
-}[activeLab.value]));
+  }[activeLab.value]);
+});
+const dragTip = computed(() => {
+  if (activeCourse.value.group !== 'calculus') return 'Ajustez les paramètres';
+  return activeLab.value === 'revolution' ? 'Glissez pour faire tourner' : activeLab.value === 'derivative' ? 'Glissez le point sur la courbe' : activeLab.value === 'riemann' ? 'Glissez pour ajouter des rectangles' : 'Ajustez l’ordre pour explorer';
+});
 
 const liveEquations = computed(() => {
+  if (activeCourse.value.group === 'foundation') {
+    const solution = (foundation.c - foundation.b) / foundation.a;
+    return [
+      { label: 'Équation', latex: `${foundation.a}x${foundation.b < 0 ? '' : '+'}${foundation.b}=${foundation.c}` },
+      { label: 'Solution', latex: `x=\\frac{${foundation.c}-(${foundation.b})}{${foundation.a}}=${fractionLatex(solution)}` }
+    ];
+  }
+  if (activeCourse.value.group === 'linear') {
+    if (activeLab.value === 'vectors') {
+      return [
+        { label: 'Addition de vecteurs', latex: `\\vec u=\\begin{pmatrix}${fractionLatex(linear.u)}\\\\${fractionLatex(linear.v)}\\end{pmatrix},\\quad\\vec v=\\begin{pmatrix}${fractionLatex(linear.x)}\\\\${fractionLatex(linear.y)}\\end{pmatrix}` },
+        { label: 'Résultante', latex: `\\vec u+\\vec v=\\begin{pmatrix}${fractionLatex(linear.u+linear.x)}\\\\${fractionLatex(linear.v+linear.y)}\\end{pmatrix}` }
+      ];
+    }
+    return [
+      { label: 'Matrice de transformation', latex: `A=\\begin{pmatrix}${fractionLatex(linear.scaleX)}&${fractionLatex(linear.shear)}\\\\0&${fractionLatex(linear.scaleY)}\\end{pmatrix}` },
+      { label: 'Facteur d’aire', latex: `\\det(A)=${fractionLatex(linear.scaleX*linear.scaleY)}\\qquad T(1,0)=(${fractionLatex(linear.scaleX)},0)` }
+    ];
+  }
+  if (activeCourse.value.group === 'discrete') {
+    if (activeLab.value === 'logic') {
+      const result = discrete.operation === 'and' ? discrete.p && discrete.q : discrete.operation === 'or' ? discrete.p || discrete.q : discrete.operation === 'xor' ? discrete.p !== discrete.q : !discrete.p || discrete.q;
+      const connective = { and: '\\land', or: '\\lor', xor: '\\oplus', implies: '\\Rightarrow' }[discrete.operation];
+      return [
+        { label: 'Proposition composée', latex: `p${connective}q=\\text{${result ? 'vrai' : 'faux'}}\\qquad p=\\text{${discrete.p ? 'vrai' : 'faux'}},\\;q=\\text{${discrete.q ? 'vrai' : 'faux'}}` },
+        { label: 'Opérateur logique', latex: discrete.operation === 'implies' ? `p\\Rightarrow q\\equiv\\neg p\\lor q` : `p${connective}q` }
+      ];
+    }
+    const vertices=discrete.vertices, edges=discrete.graph==='complete'?vertices*(vertices-1)/2:discrete.graph==='path'?vertices-1:vertices;
+    return [
+      { label: 'Taille du graphe', latex: `|V|=${vertices},\\qquad |E|=${edges}` },
+      { label: 'Relation d’Euler', latex: `\\sum_{v\\in V}\\deg(v)=2|E|=${2*edges}` }
+    ];
+  }
+  if (activeCourse.value.group === 'ode') {
+    const x=2.4, euler=ode.y0*(1+ode.rate*ode.h)**Math.floor(x/ode.h), exact=ode.y0*Math.exp(ode.rate*x);
+    return [
+      { label: 'Équation différentielle', latex: `y'=\\lambda y,\\quad y(0)=${fractionLatex(ode.y0)},\\quad y(x)=${fractionLatex(ode.y0)}e^{${fractionLatex(ode.rate)}x}` },
+      { label: 'Approximation d’Euler', latex: `y_{k+1}=y_k+h\\lambda y_k,\\quad y(${fractionLatex(x)})\\approx${fractionLatex(euler)},\\quad y_{\\mathrm{exact}}\\approx${fractionLatex(exact)}` }
+    ];
+  }
+  if (activeCourse.value.group === 'probability') {
+    const mean=probability.n*probability.p, variance=mean*(1-probability.p);
+    return [
+      { label: 'Loi binomiale', latex: `X\\sim\\operatorname{Bin}(n,p),\\qquad P(X=k)=\\binom{n}{k}p^k(1-p)^{n-k}` },
+      { label: 'Vos paramètres', latex: `n=${probability.n},\\quad p=${fractionLatex(probability.p)},\\quad E[X]=np=${fractionLatex(mean)},\\quad\\operatorname{Var}(X)=${fractionLatex(variance)}` }
+    ];
+  }
+  if (activeCourse.value.group === 'multivariable') {
+    const {x,y}=multivariable;
+    return [
+      { label: 'Surface et niveaux', latex: `f(x,y)=x^2+y^2,\\qquad f(x,y)=c\\;\\Longleftrightarrow\\;x^2+y^2=c` },
+      { label: 'Gradient au point choisi', latex: `\\nabla f(${fractionLatex(x)},${fractionLatex(y)})=\\begin{pmatrix}2x\\\\2y\\end{pmatrix}=\\begin{pmatrix}${fractionLatex(2*x)}\\\\${fractionLatex(2*y)}\\end{pmatrix}` }
+    ];
+  }
   if (activeLab.value === 'derivative') {
     const functions = {
       parabola: { f: x => x * x - 2 * x, expression: 'x^2-2x' },
@@ -227,9 +377,16 @@ function renderMath(latex) {
   return katex.renderToString(latex, { throwOnError: false, displayMode: true, strict: 'ignore' });
 }
 
-function enterPlayground() {
+function enterCourse(id) {
+  activeCourseId.value = id;
+  const group = courses.find(course => course.id === id)?.group || 'calculus';
+  activeLab.value = group === 'calculus' ? 'derivative' : modesByGroup[group][0].id;
   introVisible.value = false;
   nextTick(() => drawLab());
+}
+
+function goHome() {
+  introVisible.value = true;
 }
 
 function switchView(v) {
@@ -249,6 +406,12 @@ function selectLab(id) {
 }
 
 function resetPlayground() {
+  if (activeCourse.value.group === 'foundation') Object.assign(foundation, { a: 2, b: 3, c: 9 });
+  if (activeCourse.value.group === 'linear') Object.assign(linear, { u: 2, v: 1, x: -1, y: 1.5, scaleX: 1.5, scaleY: 0.8, shear: 0.5 });
+  if (activeCourse.value.group === 'discrete') Object.assign(discrete, { p: true, q: false, operation: 'and', vertices: 6, graph: 'cycle' });
+  if (activeCourse.value.group === 'ode') Object.assign(ode, { y0: 1, h: 0.1, rate: 0.7 });
+  if (activeCourse.value.group === 'probability') Object.assign(probability, { n: 12, p: 0.4 });
+  if (activeCourse.value.group === 'multivariable') Object.assign(multivariable, { x: 1.2, y: 0.8 });
   if (activeLab.value === 'derivative') Object.assign(d1, { fn: 'parabola', a: 1, h: 1.2 });
   if (activeLab.value === 'riemann') Object.assign(d2, { method: 'midpoint', n: 10, b: 4 });
   if (activeLab.value === 'revolution') Object.assign(d3, { preset: 'washer', theta: 260, sliceX: 2, yaw: 0.72, pitch: 0.35 });
@@ -315,6 +478,11 @@ function fractionLatex(value, maxDenominator = 1000) {
   denominator /= divisor;
   return denominator === 1 ? `${sign}${numerator}` : `${sign}\\frac{${numerator}}{${denominator}}`;
 }
+function fractionText(value) {
+  const latex = fractionLatex(value);
+  const fraction = latex.match(/^(-?)\\frac\{(\d+)\}\{(\d+)\}$/);
+  return fraction ? `${fraction[1]}${fraction[2]}/${fraction[3]}` : latex;
+}
 
 function drawLab() {
   const c = labCanvas.value;
@@ -327,6 +495,11 @@ function drawLab() {
   ctx.scale(dpr, dpr);
   ctx.fillStyle = '#f1f2f8';
   ctx.fillRect(0, 0, w, h);
+
+  if (activeCourse.value.group !== 'calculus') {
+    drawCourseLab(ctx, w, h);
+    return;
+  }
 
   if (activeLab.value === 'derivative') {
     const fns = {
@@ -538,6 +711,144 @@ function drawLab() {
   }
 }
 
+function drawCourseLab(ctx, w, h) {
+  const ink = '#343540', blue = '#7882c9', coral = '#df8d72', green = '#65a986';
+  const cx = w * 0.5, cy = h * 0.54, scale = Math.min(w, h) / 9;
+  const drawGrid = () => {
+    ctx.strokeStyle = 'rgba(101,104,130,.12)'; ctx.lineWidth = 1;
+    for (let i = -8; i <= 8; i++) {
+      ctx.beginPath(); ctx.moveTo(cx + i * scale, 0); ctx.lineTo(cx + i * scale, h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, cy + i * scale); ctx.lineTo(w, cy + i * scale); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(54,55,65,.45)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+  };
+  const arrow = (x0, y0, x1, y1, color, label, width = 3) => {
+    const ax = cx + x0 * scale, ay = cy - y0 * scale, bx = cx + x1 * scale, by = cy - y1 * scale;
+    const angle = Math.atan2(by - ay, bx - ax), head = 11;
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - head * Math.cos(angle - 0.45), by - head * Math.sin(angle - 0.45)); ctx.lineTo(bx - head * Math.cos(angle + 0.45), by - head * Math.sin(angle + 0.45)); ctx.closePath(); ctx.fill();
+    ctx.font = '13px -apple-system, sans-serif'; ctx.fillText(label, bx + 8, by - 7);
+  };
+
+  if (activeCourse.value.group === 'foundation') {
+    const left = 52, right = w - 42, top = 55, bottom = h - 55;
+    const solution = (foundation.c - foundation.b) / foundation.a;
+    const xmin = solution - 5, xmax = solution + 5;
+    const ymin = Math.min(foundation.a * xmin + foundation.b, foundation.c) - 4;
+    const ymax = Math.max(foundation.a * xmax + foundation.b, foundation.c) + 4;
+    const px = x => left + (x - xmin) / (xmax - xmin) * (right - left);
+    const py = y => bottom - (y - ymin) / (ymax - ymin) * (bottom - top);
+    ctx.strokeStyle = 'rgba(101,104,130,.14)'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) { const x = left + (right - left) * i / 8; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); }
+    for (let i = 0; i <= 6; i++) { const y = top + (bottom - top) * i / 6; ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(54,55,65,.4)'; ctx.beginPath(); ctx.moveTo(left, bottom); ctx.lineTo(right, bottom); ctx.stroke();
+    ctx.strokeStyle = blue; ctx.lineWidth = 3; ctx.beginPath();
+    ctx.moveTo(px(xmin), py(foundation.a * xmin + foundation.b));
+    ctx.lineTo(px(xmax), py(foundation.a * xmax + foundation.b)); ctx.stroke();
+    ctx.strokeStyle = coral; ctx.lineWidth = 2; ctx.setLineDash([7, 6]);
+    ctx.beginPath(); ctx.moveTo(px(xmin), py(foundation.c)); ctx.lineTo(px(xmax), py(foundation.c)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(px(solution), py(foundation.c), 7, 0, Math.PI * 2); ctx.fillStyle = green; ctx.fill();
+    ctx.font = '13px -apple-system, sans-serif'; ctx.fillStyle = blue; ctx.fillText(`${foundation.a}x + ${foundation.b}`, left + 12, top + 12);
+    ctx.fillStyle = coral; ctx.fillText(`c = ${foundation.c}`, right - 70, py(foundation.c) - 10);
+    hudLines.value = [{ label: 'Solution x :', value: fractionText(solution), color: green }, { label: 'Intersection :', value: `(${fractionText(solution)}, ${foundation.c})`, color: blue }];
+    return;
+  }
+
+  if (activeCourse.value.group === 'linear') {
+    drawGrid();
+    if (activeLab.value === 'vectors') {
+      arrow(0, 0, linear.u, linear.v, blue, 'u');
+      arrow(0, 0, linear.x, linear.y, coral, 'v');
+      arrow(linear.u, linear.v, linear.u + linear.x, linear.v + linear.y, 'rgba(223,141,114,.55)', 'v', 2);
+      arrow(0, 0, linear.u + linear.x, linear.v + linear.y, green, 'u + v', 3.5);
+      hudLines.value = [{ label: 'Somme u + v :', value: `(${(linear.u + linear.x).toFixed(1)}, ${(linear.v + linear.y).toFixed(1)})`, color: green }];
+      return;
+    }
+    const transform = (x, y) => [linear.scaleX * x + linear.shear * y, linear.scaleY * y];
+    ctx.strokeStyle = 'rgba(120,130,201,.45)'; ctx.lineWidth = 1.5;
+    for (let i = -5; i <= 5; i++) {
+      let p = transform(i, -5), q = transform(i, 5);
+      ctx.beginPath(); ctx.moveTo(cx + p[0] * scale, cy - p[1] * scale); ctx.lineTo(cx + q[0] * scale, cy - q[1] * scale); ctx.stroke();
+      p = transform(-5, i); q = transform(5, i);
+      ctx.beginPath(); ctx.moveTo(cx + p[0] * scale, cy - p[1] * scale); ctx.lineTo(cx + q[0] * scale, cy - q[1] * scale); ctx.stroke();
+    }
+    const e1 = transform(1, 0), e2 = transform(0, 1);
+    arrow(0, 0, e1[0], e1[1], blue, 'T(e₁)'); arrow(0, 0, e2[0], e2[1], coral, 'T(e₂)');
+    hudLines.value = [{ label: 'Déterminant det(A) :', value: (linear.scaleX * linear.scaleY).toFixed(2), color: green }, { label: 'Aire transformée :', value: `${Math.abs(linear.scaleX * linear.scaleY).toFixed(2)} u²`, color: blue }];
+    return;
+  }
+
+  if (activeCourse.value.group === 'discrete') {
+    if (activeLab.value === 'logic') {
+      const op = discrete.operation;
+      const apply = (p, q) => op === 'and' ? p && q : op === 'or' ? p || q : op === 'xor' ? p !== q : !p || q;
+      const rows = [[true,true],[true,false],[false,true],[false,false]];
+      ctx.font = '600 15px -apple-system, sans-serif'; ctx.fillStyle = ink;
+      const cols = [cx - 135, cx - 5, cx + 110];
+      ['p','q', op === 'and' ? 'p ∧ q' : op === 'or' ? 'p ∨ q' : op === 'xor' ? 'p ⊕ q' : 'p ⇒ q'].forEach((label, i) => ctx.fillText(label, cols[i], cy - 110));
+      rows.forEach((row, i) => {
+        const y = cy - 72 + i * 49;
+        const selected = row[0] === discrete.p && row[1] === discrete.q;
+        ctx.fillStyle = selected ? 'rgba(120,130,201,.16)' : 'rgba(255,255,255,.55)';
+        ctx.beginPath(); ctx.roundRect(cx - 155, y - 26, 320, 38, 10); ctx.fill();
+        ctx.fillStyle = ink; ctx.font = '13px -apple-system, sans-serif';
+        ctx.fillText(row[0] ? 'Vrai' : 'Faux', cols[0], y);
+        ctx.fillText(row[1] ? 'Vrai' : 'Faux', cols[1], y);
+        ctx.fillStyle = apply(row[0], row[1]) ? green : '#a4a4ad'; ctx.fillText(apply(row[0], row[1]) ? 'Vrai' : 'Faux', cols[2], y);
+      });
+      hudLines.value = [{ label: 'Résultat pour vos valeurs :', value: apply(discrete.p, discrete.q) ? 'Vrai' : 'Faux', color: apply(discrete.p, discrete.q) ? green : coral }];
+      return;
+    }
+    const n = discrete.vertices, r = Math.min(w, h) * 0.29;
+    const nodes = Array.from({ length: n }, (_, i) => ({ x: cx + Math.cos(-Math.PI / 2 + i * Math.PI * 2 / n) * r, y: cy + Math.sin(-Math.PI / 2 + i * Math.PI * 2 / n) * r }));
+    const edges = [];
+    if (discrete.graph === 'complete') { for (let i=0;i<n;i++) for (let j=i+1;j<n;j++) edges.push([i,j]); }
+    else if (discrete.graph === 'path') { for (let i=0;i<n-1;i++) edges.push([i,i+1]); }
+    else { for (let i=0;i<n;i++) edges.push([i,(i+1)%n]); }
+    ctx.strokeStyle = 'rgba(120,130,201,.52)'; ctx.lineWidth = 2;
+    edges.forEach(([a,b]) => { ctx.beginPath(); ctx.moveTo(nodes[a].x,nodes[a].y); ctx.lineTo(nodes[b].x,nodes[b].y); ctx.stroke(); });
+    nodes.forEach((node,i) => { ctx.beginPath(); ctx.arc(node.x,node.y,17,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=blue; ctx.lineWidth=2; ctx.stroke(); ctx.fillStyle=ink; ctx.font='12px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.fillText(`${i+1}`,node.x,node.y+4); });
+    ctx.textAlign='left';
+    hudLines.value = [{ label: 'Sommets |V| :', value: n, color: blue }, { label: 'Arêtes |E| :', value: edges.length, color: coral }];
+    return;
+  }
+
+  if (activeCourse.value.group === 'ode') {
+    const left=55, right=w-38, top=45, bottom=h-50, xmax=2.4, ymax=5.5;
+    const px=x=>left+x/xmax*(right-left), py=y=>bottom-y/ymax*(bottom-top);
+    ctx.strokeStyle='rgba(101,104,130,.13)';ctx.lineWidth=1;
+    for(let i=0;i<=8;i++){const x=left+(right-left)*i/8;ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke();}
+    for(let i=0;i<=6;i++){const y=top+(bottom-top)*i/6;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();}
+    ctx.strokeStyle='rgba(54,55,65,.4)';ctx.beginPath();ctx.moveTo(left,bottom);ctx.lineTo(right,bottom);ctx.moveTo(left,top);ctx.lineTo(left,bottom);ctx.stroke();
+    if(activeLab.value==='slope'){ctx.strokeStyle='rgba(120,130,201,.35)';ctx.lineWidth=1;for(let x=.1;x<xmax;x+=.24)for(let y=.2;y<ymax;y+=.48){const m=ode.rate*y,dx=9/Math.sqrt(1+m*m),dy=m*dx;ctx.beginPath();ctx.moveTo(px(x)-dx,py(y)+dy);ctx.lineTo(px(x)+dx,py(y)-dy);ctx.stroke();}}
+    const steps=Math.floor(xmax/ode.h), values=[ode.y0];let value=ode.y0;
+    for(let i=0;i<steps;i++){value+=ode.h*ode.rate*value;values.push(value);}
+    ctx.strokeStyle=coral;ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<=steps;i++){const x=i*ode.h,y=ode.y0*Math.exp(ode.rate*x);if(i===0)ctx.moveTo(px(x),py(y));else ctx.lineTo(px(x),py(y));}ctx.stroke();
+    ctx.strokeStyle=blue;ctx.lineWidth=3;ctx.beginPath();values.forEach((y,i)=>{const x=i*ode.h;if(i===0)ctx.moveTo(px(x),py(y));else ctx.lineTo(px(x),py(y));});ctx.stroke();
+    hudLines.value=[{label:'Euler à x = 2.4 :',value:values.at(-1).toFixed(3),color:blue},{label:'Solution exacte :',value:(ode.y0*Math.exp(ode.rate*2.4)).toFixed(3),color:coral}];
+    return;
+  }
+
+  if (activeCourse.value.group === 'probability') {
+    const n=probability.n,p=probability.p, choose=(a,b)=>{let result=1;for(let i=1;i<=b;i++)result=result*(a-i+1)/i;return result;};
+    const probs=Array.from({length:n+1},(_,k)=>choose(n,k)*p**k*(1-p)**(n-k));
+    const left=50,right=w-35,base=h-60,top=65,max=Math.max(...probs)*1.15,barW=(right-left)/(n+1)*.68;
+    ctx.strokeStyle='rgba(54,55,65,.35)';ctx.beginPath();ctx.moveTo(left,base);ctx.lineTo(right,base);ctx.stroke();
+    probs.forEach((prob,k)=>{const x=left+(k+.16)*(right-left)/(n+1),barH=(prob/max)*(base-top);ctx.fillStyle=k===Math.round(n*p)?blue:'rgba(120,130,201,.48)';ctx.beginPath();ctx.roundRect(x,base-barH,barW,barH,5);ctx.fill();ctx.fillStyle='#777780';ctx.font='10px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillText(`${k}`,x+barW/2,base+17);});
+    ctx.textAlign='left';hudLines.value=[{label:'Espérance E[X] = np :',value:(n*p).toFixed(2),color:blue},{label:'Écart-type :',value:Math.sqrt(n*p*(1-p)).toFixed(2),color:green}];
+    return;
+  }
+
+  const mapX=x=>cx+x*scale,mapY=y=>cy-y*scale;
+  [0.8,1.3,1.8,2.3,2.8].forEach((radius,i)=>{ctx.beginPath();ctx.ellipse(cx,cy,radius*scale,radius*scale*.62,0,0,Math.PI*2);ctx.strokeStyle=`rgba(120,130,201,${.22+i*.07})`;ctx.lineWidth=1.5;ctx.stroke();});
+  const {x,y}=multivariable,gx=2*x,gy=2*y;
+  ctx.beginPath();ctx.arc(mapX(x),mapY(y),6,0,Math.PI*2);ctx.fillStyle=coral;ctx.fill();
+  arrow(x,y,x+gx*.22,y+gy*.22,green,'∇f');
+  hudLines.value=[{label:'f(x,y) = x² + y² :',value:(x*x+y*y).toFixed(2),color:blue},{label:'Gradient :',value:`(${gx.toFixed(1)}, ${gy.toFixed(1)})`,color:green}];
+}
+
 function animateHToZero() {
   d1.h = 2.2;
   function step() {
@@ -596,26 +907,39 @@ onUnmounted(() => {
 :global(button), :global(select), :global(input) { font: inherit; }
 .app-shell { --ink:#1d1d1f; --muted:#6e6e73; --line:rgba(29,29,31,.1); --blue:#1677ff; min-height:100vh; display:flex; flex-direction:column; background:#f5f5f7; color:var(--ink); }
 .app-shell.projector { font-size:112%; }
-.intro-page { min-height:100svh; position:fixed;inset:0;z-index:100;overflow:hidden;isolation:isolate; background:radial-gradient(ellipse at 74% 46%,#f0f1fb 0%,#f6f6f8 42%,#f5f5f7 76%); }
+.intro-page { min-height:100svh; position:fixed;inset:0;z-index:100;overflow-y:auto;overflow-x:hidden;isolation:isolate; background:radial-gradient(ellipse at 74% 46%,#f0f1fb 0%,#f6f6f8 42%,#f5f5f7 76%); }
 .intro-art { position:absolute; inset:0; width:100%; height:100%; z-index:0; touch-action:pan-y; }
 .intro-topline { position:absolute;z-index:1; left:clamp(24px,5vw,76px); right:clamp(24px,5vw,76px); top:34px; display:flex; align-items:center; gap:12px; color:#56565c; font-size:13px; letter-spacing:.02em; }
 .intro-mark { width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#1d1d1f;color:white;font-family:Georgia,serif;font-size:20px; }
 .intro-topline i { color:#aaa; font-style:normal; padding:0 3px; }
 .intro-live { margin-left:auto; display:flex;align-items:center;gap:8px;color:#77777d;font-size:12px; }
 .intro-live b { width:6px;height:6px;border-radius:50%;background:#65b98c;box-shadow:0 0 0 4px rgba(101,185,140,.12); }
-.intro-content { position:absolute;z-index:1;left:clamp(28px,11.2vw,172px);top:50%;transform:translateY(-48%);width:min(530px,50vw); }
-.intro-kicker { color:#7a7a82;font-size:11px;font-weight:650;letter-spacing:.17em;margin-bottom:23px; }
-.intro-content h1 { font-size:clamp(54px,7.4vw,100px);line-height:.98;letter-spacing:-.075em;font-weight:650;margin:0;color:#222226; }
+.intro-content { position:absolute;z-index:1;left:clamp(28px,8vw,124px);top:50%;transform:translateY(-50%);width:min(760px,68vw); }
+.intro-kicker { color:#7a7a82;font-size:10px;font-weight:650;letter-spacing:.17em;margin-bottom:14px; }
+.intro-content h1 { font-size:clamp(48px,6vw,78px);line-height:.92;letter-spacing:-.075em;font-weight:650;margin:0;color:#222226; }
 .intro-content h1 em { font-style:normal;color:#8e8fd4; }
-.intro-content p { font-size:18px;line-height:1.55;color:#6e6e73;max-width:390px;margin:25px 0 28px; }
+.landing-course-label { margin:21px 0 9px;color:#7b7b83;font-size:10px;letter-spacing:.08em; }
+.landing-courses { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+.landing-course { min-width:0;min-height:56px;display:flex;align-items:center;gap:11px;text-align:left;padding:8px 11px;border:1px solid rgba(60,61,78,.07);border-radius:14px;background:rgba(255,255,255,.63);backdrop-filter:blur(14px);color:#29292f;cursor:pointer;box-shadow:0 4px 16px rgba(48,50,79,.025);transition:transform .2s ease,background .2s ease,border-color .2s ease,box-shadow .2s ease;animation:course-arrive .45s both; }
+.landing-course:nth-child(2){animation-delay:.04s}.landing-course:nth-child(3){animation-delay:.08s}.landing-course:nth-child(4){animation-delay:.12s}.landing-course:nth-child(5){animation-delay:.16s}.landing-course:nth-child(6){animation-delay:.2s}.landing-course:nth-child(7){animation-delay:.24s}
+.landing-course:hover { transform:translateY(-3px) scale(1.012);background:rgba(255,255,255,.94);border-color:rgba(137,139,211,.35);box-shadow:0 12px 28px rgba(53,55,96,.1); }
+.landing-course:focus-visible { outline:2px solid #8586c9;outline-offset:2px; }
+.course-symbol { flex:none;width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:rgba(141,143,211,.11);color:#8183c5;font:17px Georgia,serif; }
+.course-copy { min-width:0;display:flex;flex-direction:column;gap:3px; }
+.course-copy strong { font-size:10px;font-weight:700;letter-spacing:.07em;color:#575860; }
+.course-copy small { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#777780;font-size:10px; }
+.course-arrow { margin-left:auto;color:#999bd2;font-size:15px;transition:transform .2s ease; }
+.landing-course:hover .course-arrow { transform:translate(2px,-2px); }
+@keyframes course-arrive { from { opacity:0;transform:translateY(8px) } to { opacity:1;transform:translateY(0) } }
 .intro-enter { border:0;border-radius:999px;background:#1d1d1f;color:white;padding:15px 22px 15px 24px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 9px 25px rgba(29,29,31,.13);transition:transform .2s,background .2s; }
 .intro-enter span { padding-left:17px;font-size:17px; }
 .intro-enter:hover { transform:translateY(-2px);background:#353539; }
 .intro-hint { display:flex;align-items:center;gap:10px;color:#929299;font-size:11px;margin-top:24px;letter-spacing:.015em; }
 .hint-line { width:24px;height:1px;background:#b7b7be; }
 .intro-equation { position:absolute;z-index:1;color:rgba(75,79,117,.48);font-family:Georgia,serif;font-size:20px;letter-spacing:.02em; }
-.equation-one { top:24%;right:17%;transform:rotate(-8deg); }
-.equation-two { bottom:26%;right:8%;transform:rotate(7deg);font-size:17px; }
+.landing-equation { position:absolute;z-index:1;color:rgba(75,79,117,.38);font-family:Georgia,serif;font-size:20px;letter-spacing:.02em;pointer-events:none; }
+.equation-one { top:25%;right:16%;transform:rotate(-8deg); }
+.equation-two { bottom:25%;right:9%;transform:rotate(7deg);font-size:17px; }
 .intro-index { position:absolute;z-index:1;right:clamp(28px,5vw,76px);top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:12px;color:#8b8b91;font-size:10px;letter-spacing:.12em;writing-mode:vertical-rl; }
 .intro-index span:first-child { color:#414148;font-size:12px; }
 .index-rule { height:62px;width:1px;background:linear-gradient(#aaa,#ddd); }
@@ -623,7 +947,8 @@ onUnmounted(() => {
 .intro-bottom b { font-weight:400;padding-left:6px; }
 .navbar { position:sticky;top:0;z-index:50;background:rgba(250,250,252,.78);backdrop-filter:blur(20px);border-bottom:1px solid rgba(29,29,31,.08);padding:12px 26px; }
 .nav-inner { max-width:1360px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px; }
-.brand { display:flex;align-items:center;gap:11px;cursor:pointer; }
+.brand { display:flex;align-items:center;gap:11px;cursor:pointer;border:0;background:transparent;color:inherit;text-align:left;padding:0; }
+.nav-home span { font-size:15px;margin-right:4px; }
 .ets-logo { background:#1d1d1f;color:#fff;font-size:13px;letter-spacing:-.04em;padding:8px 10px;border-radius:10px;font-weight:750; }
 .brand-title { font-weight:650;font-size:15px;display:flex;align-items:center;gap:8px;letter-spacing:-.02em; }
 .badge { font-size:10px;color:#77777d;background:#f0f0f2;padding:4px 7px;border-radius:99px;font-weight:500; }
@@ -754,4 +1079,26 @@ onUnmounted(() => {
 .playground-shell ~ .footer { display:none; }
 @media(max-width:950px) { .playground-heading{align-items:flex-start;flex-direction:column;gap:15px}.playground-controls{width:255px;right:12px}.playground-stage .stage-canvas{height:62vh;min-height:440px} }
 @media(max-width:640px) { .header-note{display:none}.playground-shell{padding:24px 14px 22px}.playground-heading{margin-bottom:14px}.playground-heading h1{font-size:31px}.playground-heading p{font-size:12px;max-width:300px}.play-modes{width:100%;justify-content:space-between;gap:1px;padding:4px}.play-mode{padding:8px 9px;font-size:10px;gap:5px}.mode-symbol{font-size:13px}.playground-stage{min-height:720px;overflow:visible;border-radius:18px}.playground-stage .stage-canvas{height:720px;min-height:720px;border-radius:18px}.playground-controls{top:auto;bottom:14px;left:12px;right:12px;width:auto;padding:15px}.playground-controls .ctrl-group{margin-bottom:10px}.control-heading{margin-bottom:12px}.playground-controls .control-footnote{display:none}.playground-stage .hud-box{top:62px;bottom:auto;left:12px;min-width:185px;padding:9px 10px;font-size:10px}.playground-stage .scene-title{left:13px;top:14px}.scene-title strong{font-size:12px}.scene-title small{font-size:10px}.stage-export{right:12px;top:12px}.drag-tip{right:16px;bottom:443px;max-width:120px;text-align:right}.math-live-card{padding:16px 14px}.math-live-heading{align-items:flex-start}.math-live-heading h2{font-size:15px}.math-live-status{font-size:9px}.math-equation-grid{grid-template-columns:1fr;gap:8px}.math-equation{padding:12px}.math-equation-render{font-size:13px}.play-prompts{gap:6px;padding-top:12px}.prompt-label{width:100%;margin:0 0 2px 2px}.play-prompts button{font-size:9px;padding:7px 9px}.intro-content{width:80vw} }
+.intro-content { width:min(760px,68vw); }
+.nav-home { margin-left:auto; }
+@media(max-width:700px) {
+  .intro-content { left:20px;top:76px;bottom:68px;transform:none;width:calc(100vw - 40px); }
+  .intro-content h1 { font-size:clamp(45px,11vw,62px); }
+  .landing-course-label { margin-top:17px; }
+  .landing-courses { gap:7px; }
+  .landing-course { min-height:54px;padding:7px;gap:7px;border-radius:12px; }
+  .course-symbol { width:27px;height:27px;border-radius:8px;font-size:15px; }
+  .course-copy small { white-space:normal;font-size:9px;line-height:1.2; }
+  .landing-equation { display:none; }
+  .intro-bottom { left:20px;right:20px;bottom:20px;font-size:9px; }
+  .nav-inner { justify-content:flex-start; }
+  .nav-home { margin-left:auto;padding:8px 10px;font-size:10px; }
+}
+@media(max-width:390px) {
+  .landing-courses { grid-template-columns:1fr; }
+  .landing-course { min-height:46px; }
+  .intro-content { top:64px;bottom:58px; }
+  .intro-content h1 { font-size:44px; }
+  .landing-course-label { margin:12px 0 7px; }
+}
 </style>
